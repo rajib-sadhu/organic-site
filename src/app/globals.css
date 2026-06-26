@@ -1,26 +1,115 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------------------------------------------------------------------------
+   Organic Foods — design tokens (Tailwind v4 @theme).
+   Warm cream paper + deep forest green + honey accent. Minimal, eye-catching.
+   Retune the whole brand by editing the values below.
+--------------------------------------------------------------------------- */
+@theme {
+  /* Brand palette */
+  --color-cream: #faf8f3;
+  --color-paper: #fffefb;
+  --color-sand: #f1ebdf;
+  --color-line: #e7e1d3;
+
+  --color-forest: #24503a;
+  --color-forest-dark: #19392a;
+  --color-leaf: #3c7a52;
+  --color-leaf-soft: #e8f0e7;
+
+  --color-honey: #d9923f;
+  --color-honey-dark: #bf7a2c;
+  --color-clay: #b9542f;
+
+  --color-ink: #211e19;
+  --color-muted: #6d655a;
+
+  /* Typography */
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Radius */
+  --radius-xl: 1.1rem;
+  --radius-2xl: 1.5rem;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* offset sticky navbar for anchor links */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Headings default to the display serif */
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Reusable layout container */
+@utility container-page {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 80rem;
+  padding-inline: 1.25rem;
+}
+
+/* Admin form input base */
+@utility input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-line);
+  background-color: var(--color-paper);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  &:focus {
+    border-color: var(--color-forest);
+  }
+}
+
+/* Blog post prose */
+.prose-organic {
+  line-height: 1.8;
+  color: var(--color-ink);
+  & h2 { font-family: var(--font-display); font-size: 1.5rem; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--color-forest-dark); }
+  & h3 { font-family: var(--font-display); font-size: 1.25rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+  & p { margin-bottom: 1rem; }
+  & ul, & ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+  & ul { list-style: disc; }
+  & ol { list-style: decimal; }
+  & li { margin-bottom: 0.25rem; }
+  & a { color: var(--color-forest); text-decoration: underline; }
+  & blockquote { border-left: 3px solid var(--color-honey); padding-left: 1rem; color: var(--color-muted); font-style: italic; margin: 1.5rem 0; }
+  & img { border-radius: 1rem; margin: 1.5rem 0; }
+  & code { background: var(--color-sand); padding: 0.15em 0.3em; border-radius: 0.25rem; font-size: 0.9em; }
+}
+
+/* Hide number input spinners globally */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Subtle grain/texture-free; rely on color + type for the organic feel. */

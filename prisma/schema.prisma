@@ -1,0 +1,478 @@
+// Organic Foods e-commerce — Prisma schema
+// Stack: Next.js (App Router) + MySQL + Prisma 7. See ARCHITECTURE.md.
+// Conventions:
+//   - Money stored as INTEGER PAISE (never floats).
+//   - Orders/invoices store SNAPSHOTS of product/price data at purchase time.
+//   - Customers are guests (no account); admins are authenticated with RBAC.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ---------------------------------------------------------------------------
+// Catalog
+// ---------------------------------------------------------------------------
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  slug      String    @unique
+  name      String
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id          Int              @id @default(autoincrement())
+  slug             String           @unique
+  name             String
+  tagline          String?
+  shortDescription String?          @db.Text
+  description      String           @db.Text
+  category    Category         @relation(fields: [categoryId], references: [id])
+  categoryId  Int
+  images      ProductImage[]
+  variants    ProductVariant[]
+  reviews     Review[]
+  isActive    Boolean          @default(true)
+  isFeatured  Boolean          @default(false)
+  ratingAvg   Float            @default(0)
+  ratingCount Int              @default(0)
+  // Tags & badges (JSON array of strings: ["BESTSELLER","NEW_ARRIVAL"])
+  tags        Json             @default("[]")
+  // Rich detail fields
+  highlights  Json             @default("[]")  // ["Low GI","Certified Glyphosate-Free"]
+  benefits    Json             @default("[]")  // ["Aids digestion","Rich in fiber"]
+  howToUse    String?          @db.Text
+  ingredients String?          @db.Text
+  nutritionInfo Json?                          // { "Calories": "340 kcal", "Protein": "12g", ... }
+  shelfLife   String?
+  storage     String?
+  // SEO
+  metaTitle       String?
+  metaDescription String?      @db.Text
+  metaKeywords    String?      @db.Text
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive, isFeatured])
+}
+
+model ProductImage {
+  id          Int      @id @default(autoincrement())
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId   Int
+  url         String
+  alt         String?
+  sortOrder   Int      @default(0)
+  isThumbnail Boolean  @default(false)
+
+  @@index([productId])
+}
+
+model ProductVariant {
+  id          Int         @id @default(autoincrement())
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId   Int
+  label       String // "500g", "10 kg"
+  sku         String      @unique
+  pricePaise  Int // sale/tax-inclusive price
+  mrpPaise    Int?        // MRP for strikethrough; null = no discount shown
+  weightGrams Int?        // weight in grams for per-unit pricing (10kg = 10000)
+  stock       Int         @default(0)
+  isActive    Boolean     @default(true)
+  cartItems   CartItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([productId])
+}
+
+// ---------------------------------------------------------------------------
+// Cart (server-side; identified by a cart token cookie)
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id        String     @id @default(cuid())
+  items     CartItem[]
+  coupon    Coupon?    @relation(fields: [couponId], references: [id])
+  couponId  Int?
+  email     String?    // captured early for abandoned-cart recovery
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([couponId])
+}
+
+model CartItem {
+  id        Int            @id @default(autoincrement())
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  variantId Int
+  qty       Int
+
+  @@unique([cartId, variantId])
+  @@index([variantId])
+}
+
+// ---------------------------------------------------------------------------
+// Coupons
+// ---------------------------------------------------------------------------
+
+model Coupon {
+  id            Int        @id @default(autoincrement())
+  code          String     @unique
+  description   String?    @db.Text
+  type          CouponType
+  valuePaise    Int? // for FLAT
+  percent       Int? // for PERCENT (0-100)
+  minOrderPaise Int        @default(0)
+  maxUses       Int?
+  usedCount     Int        @default(0)
+  perEmailLimit Int?
+  startsAt      DateTime?
+  expiresAt     DateTime?
+  isActive      Boolean    @default(true)
+  carts         Cart[]
+  orders        Order[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Orders (server source of truth — drives admin, email, invoice)
+// ---------------------------------------------------------------------------
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  orderNo       String      @unique // human-friendly: ORD-2026-000123
+  trackingToken String      @unique @default(cuid()) // magic-link order status page
+  status        OrderStatus @default(PENDING)
+
+  customer    Customer?   @relation(fields: [customerId], references: [id])
+  customerId  Int?
+
+  // guest customer snapshot
+  email       String
+  phone       String
+  shipName    String
+  shipLine1   String
+  shipLine2   String?
+  shipCity    String
+  shipState   String
+  shipPincode String
+
+  // money snapshot (paise)
+  subtotalPaise Int
+  discountPaise Int     @default(0)
+  shippingPaise Int     @default(0)
+  codFeePaise   Int     @default(0)
+  totalPaise    Int
+  couponCode    String?
+  coupon        Coupon? @relation(fields: [couponId], references: [id])
+  couponId      Int?
+
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(PENDING)
+
+  items     OrderItem[]
+  payment   Payment?
+  invoice   Invoice?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+  @@index([couponId])
+}
+
+model OrderItem {
+  id           Int    @id @default(autoincrement())
+  order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId      Int
+  // snapshot of product/variant at purchase time
+  productName  String
+  variantLabel String
+  sku          String
+  unitPaise    Int
+  qty          Int
+  linePaise    Int
+
+  @@index([orderId])
+}
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId      Int           @unique
+  provider     String // "razorpay" | "cod"
+  rzpOrderId   String?
+  rzpPaymentId String?       @unique
+  rzpSignature String?
+  amountPaise  Int
+  status       PaymentStatus @default(PENDING)
+  rawWebhook   Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Invoice {
+  id        Int      @id @default(autoincrement())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   Int      @unique
+  invoiceNo String   @unique // INV-2026-000123
+  pdfPath   String?
+  createdAt DateTime @default(now())
+}
+
+// One-time passwords for COD phone verification (toggleable in Settings).
+model OtpChallenge {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  codeHash  String
+  purpose   String   @default("cod")
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+// ---------------------------------------------------------------------------
+// Admin RBAC (owner creates staff + grants granular permissions)
+// ---------------------------------------------------------------------------
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @relation(fields: [roleId], references: [id])
+  roleId       Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([roleId])
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique // "Owner", "Order Manager", custom...
+  description String?
+  isSystem    Boolean          @default(false) // Owner: all perms, undeletable
+  users       AdminUser[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id    Int              @id @default(autoincrement())
+  key   String           @unique // "orders.update_status"
+  label String
+  group String // UI grouping: "Orders", "Products", ...
+  roles RolePermission[]
+}
+
+model RolePermission {
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       Int
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId Int
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+// ---------------------------------------------------------------------------
+// Store settings (single editable row — admin configurable)
+// ---------------------------------------------------------------------------
+
+model Setting {
+  id                Int      @id @default(1)
+  storeName         String   @default("Organic Foods")
+  storeEmail        String?
+  flatShippingPaise Int      @default(0)
+  freeShipOverPaise Int? // null = no free-ship threshold
+  codFeePaise       Int      @default(0)
+  codOtpRequired    Boolean  @default(false) // admin toggle (see ARCHITECTURE 6.5/7.1)
+  gstEnabled        Boolean  @default(false)
+  announcementText  String?  // promo bar copy; null = bar hidden
+  announcementHref  String?
+  featureCardGrid   Int      @default(3) // home page feature cards grid: 2, 3, or 4 columns
+  updatedAt         DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  COD
+}
+
+enum CouponType {
+  PERCENT
+  FLAT
+  FREE_SHIP
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// ---------------------------------------------------------------------------
+// Customer accounts (optional; guest checkout works without one)
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String?
+  name         String?
+  phone        String?
+  isActive     Boolean  @default(true)
+  orders       Order[]
+  reviews      Review[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Reviews & ratings
+// ---------------------------------------------------------------------------
+
+model Review {
+  id         Int          @id @default(autoincrement())
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId  Int
+  customer   Customer?    @relation(fields: [customerId], references: [id])
+  customerId Int?
+  authorName String
+  rating     Int // 1..5
+  title      String?
+  body       String       @db.Text
+  isVerified Boolean      @default(false)
+  status     ReviewStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+
+  @@index([productId, status])
+  @@index([customerId])
+}
+
+// ---------------------------------------------------------------------------
+// Banners (home page carousel)
+// ---------------------------------------------------------------------------
+
+model Banner {
+  id        Int      @id @default(autoincrement())
+  title     String?
+  subtitle  String?
+  ctaText   String?
+  ctaLink   String?
+  image     String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Promo strip messages (thin rotating bar above the navbar)
+// Combined at runtime with active coupons; see /api/promo-strip.
+// ---------------------------------------------------------------------------
+
+model PromoMessage {
+  id        Int      @id @default(autoincrement())
+  text      String
+  link      String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Feature cards (home page — admin-managed promotional grid)
+// ---------------------------------------------------------------------------
+
+model FeatureCard {
+  id        Int      @id @default(autoincrement())
+  title     String
+  subtitle  String?
+  image     String
+  link      String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Blog
+// ---------------------------------------------------------------------------
+
+model BlogPost {
+  id              Int        @id @default(autoincrement())
+  slug            String     @unique
+  title           String
+  excerpt         String?    @db.Text
+  body            String     @db.LongText
+  coverImage      String?
+  status          PostStatus @default(DRAFT)
+  publishedAt     DateTime?
+  metaTitle       String?
+  metaDescription String?    @db.Text
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Newsletter
+// ---------------------------------------------------------------------------
+
+model NewsletterSubscriber {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  isConfirmed Boolean   @default(false)
+  source      String?
+  createdAt   DateTime  @default(now())
+  unsubAt     DateTime?
+}
