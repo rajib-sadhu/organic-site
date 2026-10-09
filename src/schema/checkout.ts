@@ -16,6 +16,10 @@ export const checkoutSchema = z.object({
     .string()
     .regex(/^\d{6}$/, "Enter a valid 6-digit pincode."),
   paymentMethod: z.enum(["RAZORPAY", "COD"]),
+  // COD phone verification code, required only when the store enables COD-OTP.
+  otpCode: z.string().regex(/^\d{6}$/, "Enter the 6-digit code.").optional(),
 });
+
+export const otpRequestSchema = checkoutSchema.pick({ phone: true });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;

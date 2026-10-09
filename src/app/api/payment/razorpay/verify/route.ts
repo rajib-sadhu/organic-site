@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { verifyPaymentSignature } from "@/server/lib/razorpay";
 import { clearCartToken } from "@/server/lib/cart-token";
-import { sendOrderConfirmation } from "@/server/services/email";
+import { queueOrderConfirmation } from "@/server/services/notify";
 
 const schema = z.object({
   razorpay_order_id: z.string(),
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
   await clearCartToken();
 
-  sendOrderConfirmation(payment.orderId).catch(console.error);
+  await queueOrderConfirmation(payment.orderId, payment.order.email);
 
   return NextResponse.json({
     success: true,

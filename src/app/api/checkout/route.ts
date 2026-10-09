@@ -5,7 +5,9 @@ import * as cartRepo from "@/server/repositories/cart";
 import { createOrder } from "@/server/services/order";
 import { createRazorpayOrder, getPublicKeyId } from "@/server/lib/razorpay";
 import { prisma } from "@/lib/prisma";
-import { sendOrderConfirmation } from "@/server/services/email";
+import { queueOrderConfirmation } from "@/server/services/notify";
+import { getSettings } from "@/server/services/settings";
+import { consumeCodOtp, releaseCodOtp, OtpError } from "@/server/services/otp";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -25,10 +27,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Your cart is empty." }, { status: 400 });
   }
 
-  const { paymentMethod, ...address } = parsed.data;
+  const { paymentMethod, otpCode, ...address } = parsed.data;
+
+  // COD-OTP (§6.3): when enabled, the order is only accepted with a valid code.
+  let otpChallengeId: number | null = null;
+  if (paymentMethod === "COD" && (await getSettings()).codOtpRequired) {
+    if (!otpCode) {
+      return NextResponse.json(
+        { error: "Verify your phone number to place a Cash on Delivery order.", otpRequired: true },
+        { status: 400 },
+      );
+    }
+    try {
+      otpChallengeId = await consumeCodOtp(address.phone, otpCode);
+    } catch (e) {
+      if (e instanceof OtpError) {
+        return NextResponse.json({ error: e.message, otpRequired: true }, { status: e.status });
+      }
+      throw e;
+    }
+  }
+
+  let order: Awaited<ReturnType<typeof createOrder>>;
+  try {
+    order = await createOrder({ cart, address, paymentMethod });
+  } catch (e) {
+    if (otpChallengeId) await releaseCodOtp(otpChallengeId);
+    const message = e instanceof Error ? e.message : "Checkout failed.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 
   try {
-    const order = await createOrder({ cart, address, paymentMethod });
 
     await cartRepo.setEmail(cart.id, address.email);
 
@@ -67,7 +96,7 @@ export async function POST(req: Request) {
     // COD path
     await clearCartToken();
 
-    sendOrderConfirmation(order.id).catch(console.error);
+    await queueOrderConfirmation(order.id, order.email);
 
     return NextResponse.json({
       success: true,

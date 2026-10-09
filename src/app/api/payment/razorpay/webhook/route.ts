@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookSignature } from "@/server/lib/razorpay";
-import { sendOrderConfirmation } from "@/server/services/email";
+import { queueOrderConfirmation } from "@/server/services/notify";
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
@@ -25,6 +25,7 @@ export async function POST(req: Request) {
 
     const payment = await prisma.payment.findFirst({
       where: { rzpOrderId },
+      include: { order: { select: { email: true } } },
     });
 
     if (!payment) {
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
       }),
     ]);
 
-    sendOrderConfirmation(payment.orderId).catch(console.error);
+    await queueOrderConfirmation(payment.orderId, payment.order.email);
 
     return NextResponse.json({ status: "captured" });
   }

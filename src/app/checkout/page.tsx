@@ -6,7 +6,7 @@ import Script from "next/script";
 import Link from "next/link";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, ShoppingBag, Truck, CreditCard, Banknote } from "lucide-react";
+import { ArrowLeft, Loader2, ShoppingBag, Truck, CreditCard, Banknote, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Container } from "@/components/ui/Container";
 import { formatPaise } from "@/lib/money";
@@ -28,6 +28,10 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [rzpReady, setRzpReady] = useState(false);
+  // COD-OTP: set once a code has been sent to this phone; the next submit carries the code.
+  const [otpPhone, setOtpPhone] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [sendingOtp, setSendingOtp] = useState(false);
 
   useEffect(() => {
     let stale = false;
@@ -55,6 +59,7 @@ export default function CheckoutPage() {
   });
 
   const paymentMethod = useWatch({ control, name: "paymentMethod" });
+  const phone = useWatch({ control, name: "phone" });
 
   const codFee = cart?.totals.codFeePaise ?? 0;
   const totals = cart?.totals;
@@ -101,16 +106,46 @@ export default function CheckoutPage() {
     rzp.open();
   };
 
+  const requestOtp = async (phone: string) => {
+    setSendingOtp(true);
+    try {
+      const res = await fetch("/api/checkout/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "Couldn't send the code. Please try again.");
+        return;
+      }
+      setOtpPhone(phone);
+      setOtpCode("");
+      toast.success(`We sent a 6-digit code to ${phone}.`);
+    } catch {
+      toast.error("Couldn't send the code. Please try again.");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
   const onSubmit = async (data: CheckoutInput) => {
     setSubmitting(true);
+    // A code only counts for the phone it was sent to.
+    const codeForPhone = data.paymentMethod === "COD" && otpPhone === data.phone ? otpCode : undefined;
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, otpCode: codeForPhone }),
       });
       const json = await res.json();
       if (!res.ok) {
+        if (json.otpRequired && !codeForPhone) {
+          setSubmitting(false);
+          await requestOtp(data.phone);
+          return;
+        }
         toast.error(json.error ?? "Checkout failed.");
         setSubmitting(false);
         return;
@@ -160,6 +195,7 @@ export default function CheckoutPage() {
   }
 
   const hasRzpKey = !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const otpStepActive = paymentMethod === "COD" && otpPhone !== null && otpPhone === phone;
 
   return (
     <div className="py-12 sm:py-16">
@@ -310,15 +346,49 @@ export default function CheckoutPage() {
               {totals?.shippingPaise === 0 ? "Free shipping on this order!" : `Free shipping over ${formatPaise(totals?.freeShipThresholdPaise ?? 0)}`}
             </div>
 
+            {otpStepActive && (
+              <div className="space-y-2 rounded-xl border border-forest/30 bg-leaf-soft p-4">
+                <p className="flex items-center gap-2 text-sm font-medium text-forest-dark">
+                  <ShieldCheck className="h-4 w-4" /> Verify your phone
+                </p>
+                <p className="text-xs text-muted">Enter the 6-digit code sent to {otpPhone}.</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  className={`${inputCn} text-center font-mono tracking-[0.5em]`}
+                  aria-label="Verification code"
+                />
+                <button
+                  type="button"
+                  onClick={() => otpPhone && requestOtp(otpPhone)}
+                  disabled={sendingOtp}
+                  className="text-xs font-medium text-forest underline-offset-2 hover:underline disabled:opacity-60"
+                >
+                  {sendingOtp ? "Sending…" : "Resend code"}
+                </button>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={submitting || (paymentMethod === "RAZORPAY" && !rzpReady)}
+              disabled={
+                submitting ||
+                sendingOtp ||
+                (paymentMethod === "RAZORPAY" && !rzpReady) ||
+                (otpStepActive && otpCode.length !== 6)
+              }
               className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-medium text-cream transition-colors hover:bg-forest-dark disabled:opacity-60"
             >
-              {submitting ? (
+              {submitting || sendingOtp ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {sendingOtp ? "Sending code…" : "Processing…"}
                 </>
+              ) : otpStepActive ? (
+                `Verify & place order · ${formatPaise(displayTotal)}`
               ) : (
                 `Place order · ${formatPaise(displayTotal)}`
               )}
