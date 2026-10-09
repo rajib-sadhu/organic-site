@@ -111,7 +111,24 @@ export function AdminDashboard() {
         <div className="border-b border-line px-5 py-3">
           <h2 className="text-sm font-semibold text-ink">Recent orders</h2>
         </div>
-        <div className="overflow-x-auto">
+        <ul className="divide-y divide-line md:hidden">
+          {stats.recentOrders.map((o) => (
+            <li key={o.id} className="px-5 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-forest-dark">{o.orderNo}</span>
+                <span className="font-medium text-ink">{formatPaise(o.totalPaise)}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+                <StatusBadge status={o.status} />
+                <span className="truncate">{o.shipName}</span>
+                <span>· {o.paymentMethod === "COD" ? "COD" : "Online"}</span>
+                <span>· {new Date(o.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>
+              </div>
+            </li>
+          ))}
+          {stats.recentOrders.length === 0 && <li className="px-5 py-6 text-center text-sm text-muted">No orders yet.</li>}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">

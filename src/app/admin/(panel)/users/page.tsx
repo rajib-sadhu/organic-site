@@ -44,6 +44,45 @@ export default function AdminUsersPage() {
 
   const canManageUsers = currentUser?.isSystem || currentUser?.permissions.includes("users.manage");
 
+  // Row actions, shared by the desktop table and the phone cards.
+  const renderUserActions = (u: AdminUser, className: string) => {
+    const isSelf = currentUser?.id === u.id;
+    const isTargetOwner = u.role.isSystem;
+    const canChangePassword = isSelf || (canManageUsers && (!isTargetOwner || currentUser?.isSystem));
+    const canEdit = canManageUsers && (!isTargetOwner || currentUser?.isSystem);
+    const canDelete = canManageUsers && !isTargetOwner;
+
+    return (
+      <div className={`${className} items-center gap-1`}>
+        {canEdit && (
+          <button type="button" title="Edit user" onClick={() => setEditModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {canChangePassword && (
+          <button type="button" title="Change password" onClick={() => setPasswordModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
+            <KeyRound className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {canDelete && (
+          <button
+            type="button"
+            title="Delete user"
+            onClick={async () => {
+              if (!confirm(`Delete user "${u.name}"?`)) return;
+              const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+              if (res.ok) { toast.success("User deleted."); load(); }
+              else { const j = await res.json(); toast.error(j.error ?? "Failed."); }
+            }}
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold text-ink">Users & Roles</h1>
@@ -61,7 +100,25 @@ export default function AdminUsersPage() {
 
         {showUserForm && <CreateUserForm roles={roles} onDone={() => { setShowUserForm(false); load(); }} />}
 
-        <div className="overflow-x-auto rounded-xl border border-line bg-paper">
+        <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
+          {users.map((u) => (
+            <li key={u.id} className="flex items-center gap-3 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-ink">
+                  {u.name}
+                  {currentUser?.id === u.id && <span className="ml-1.5 text-xs text-muted">(you)</span>}
+                </p>
+                <p className="truncate text-xs text-muted">{u.email}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <RoleLabel role={u.role} />
+                  <ActiveBadge active={u.isActive} />
+                </div>
+              </div>
+              {renderUserActions(u, "flex shrink-0")}
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
@@ -73,63 +130,18 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
-                const isSelf = currentUser?.id === u.id;
-                const isTargetOwner = u.role.isSystem;
-                const canChangePassword = isSelf || (canManageUsers && (!isTargetOwner || currentUser?.isSystem));
-                const canEdit = canManageUsers && (!isTargetOwner || currentUser?.isSystem);
-                const canDelete = canManageUsers && !isTargetOwner;
-
-                return (
-                  <tr key={u.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                    <td className="px-4 py-2.5 font-medium text-ink">
-                      {u.name}
-                      {isSelf && <span className="ml-1.5 text-xs text-muted">(you)</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted">{u.email}</td>
-                    <td className="px-4 py-2.5">
-                      <span className="inline-flex items-center gap-1 text-xs">
-                        {u.role.isSystem && <Shield className="h-3 w-3 text-honey" />}
-                        {u.role.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${u.isActive ? "bg-leaf-soft text-forest" : "bg-sand text-muted"}`}>
-                        {u.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        {canEdit && (
-                          <button type="button" title="Edit user" onClick={() => setEditModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {canChangePassword && (
-                          <button type="button" title="Change password" onClick={() => setPasswordModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
-                            <KeyRound className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            type="button"
-                            title="Delete user"
-                            onClick={async () => {
-                              if (!confirm(`Delete user "${u.name}"?`)) return;
-                              const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
-                              if (res.ok) { toast.success("User deleted."); load(); }
-                              else { const j = await res.json(); toast.error(j.error ?? "Failed."); }
-                            }}
-                            className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-line last:border-0 hover:bg-cream/50">
+                  <td className="px-4 py-2.5 font-medium text-ink">
+                    {u.name}
+                    {currentUser?.id === u.id && <span className="ml-1.5 text-xs text-muted">(you)</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-muted">{u.email}</td>
+                  <td className="px-4 py-2.5"><RoleLabel role={u.role} /></td>
+                  <td className="px-4 py-2.5"><ActiveBadge active={u.isActive} /></td>
+                  <td className="px-4 py-2.5 text-right">{renderUserActions(u, "inline-flex")}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -511,5 +523,22 @@ function RoleForm({ onDone }: { onDone: () => void }) {
         <button type="button" onClick={onDone} className="rounded-lg border border-line px-4 py-2 text-sm text-muted hover:bg-sand">Cancel</button>
       </div>
     </form>
+  );
+}
+
+function RoleLabel({ role }: { role: { name: string; isSystem: boolean } }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs">
+      {role.isSystem && <Shield className="h-3 w-3 text-honey" />}
+      {role.name}
+    </span>
+  );
+}
+
+function ActiveBadge({ active }: { active: boolean }) {
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${active ? "bg-leaf-soft text-forest" : "bg-sand text-muted"}`}>
+      {active ? "Active" : "Inactive"}
+    </span>
   );
 }

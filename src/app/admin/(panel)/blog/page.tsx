@@ -52,52 +52,77 @@ export default function AdminBlogPage() {
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-paper">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="px-4 py-2">Title</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Published</th>
-                <th className="px-4 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {posts.map((p) => (
-                <tr key={p.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                  <td className="px-4 py-2.5">
-                    <Link href={`/admin/blog/${p.id}`} className="font-medium text-ink hover:text-forest-dark">{p.title}</Link>
-                    <p className="text-xs text-muted">{p.slug}</p>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {p.status === "PUBLISHED" ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-forest"><Globe className="h-3 w-3" /> Published</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted"><FileText className="h-3 w-3" /> Draft</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-muted">
-                    {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString("en-IN") : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link href={`/admin/blog/${p.id}`} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Link>
-                      <button type="button" onClick={() => handleDelete(p.id, p.title)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
+        <>
+          <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
+            {posts.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/admin/blog/${p.id}`} className="block truncate font-medium text-ink hover:text-forest-dark">{p.title}</Link>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                    <PostStatus status={p.status} />
+                    {p.publishedAt && <span>{new Date(p.publishedAt).toLocaleDateString("en-IN")}</span>}
+                  </div>
+                </div>
+                <RowActions href={`/admin/blog/${p.id}`} label={p.title} onDelete={() => handleDelete(p.id, p.title)} className="flex-col" />
+              </li>
+            ))}
+            {posts.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No posts yet.</li>}
+          </ul>
+          <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-muted">
+                  <th className="px-4 py-2">Title</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Published</th>
+                  <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
-              ))}
-              {posts.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">No posts yet.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {posts.map((p) => (
+                  <tr key={p.id} className="border-b border-line last:border-0 hover:bg-cream/50">
+                    <td className="px-4 py-2.5">
+                      <Link href={`/admin/blog/${p.id}`} className="font-medium text-ink hover:text-forest-dark">{p.title}</Link>
+                      <p className="text-xs text-muted">{p.slug}</p>
+                    </td>
+                    <td className="px-4 py-2.5"><PostStatus status={p.status} /></td>
+                    <td className="px-4 py-2.5 text-xs text-muted">
+                      {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString("en-IN") : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <RowActions href={`/admin/blog/${p.id}`} label={p.title} onDelete={() => handleDelete(p.id, p.title)} className="justify-end" />
+                    </td>
+                  </tr>
+                ))}
+                {posts.length === 0 && (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">No posts yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function PostStatus({ status }: { status: string }) {
+  return status === "PUBLISHED" ? (
+    <span className="inline-flex items-center gap-1 text-xs text-forest"><Globe className="h-3 w-3" /> Published</span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-xs text-muted"><FileText className="h-3 w-3" /> Draft</span>
+  );
+}
+
+function RowActions({ href, label, onDelete, className }: { href: string; label: string; onDelete: () => void; className?: string }) {
+  return (
+    <div className={`flex items-center gap-1 ${className ?? ""}`}>
+      <Link href={href} aria-label={`Edit ${label}`} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
+        <Pencil className="h-3.5 w-3.5" />
+      </Link>
+      <button type="button" onClick={onDelete} aria-label={`Delete ${label}`} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay">
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

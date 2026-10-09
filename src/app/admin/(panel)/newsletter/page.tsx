@@ -42,7 +42,21 @@ export default function AdminNewsletterPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-paper">
+      <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
+        {subscribers.map((s) => (
+          <li key={s.id} className="p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="min-w-0 truncate font-medium text-ink">{s.email}</span>
+              <SubStatus unsubscribed={!!s.unsubAt} />
+            </div>
+            <p className="mt-0.5 text-xs text-muted">
+              {s.source ?? "—"} · {new Date(s.createdAt).toLocaleDateString("en-IN")}
+            </p>
+          </li>
+        ))}
+        {subscribers.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No subscribers yet.</li>}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
@@ -57,13 +71,7 @@ export default function AdminNewsletterPage() {
               <tr key={s.id} className="border-b border-line last:border-0">
                 <td className="px-4 py-2.5 font-medium text-ink">{s.email}</td>
                 <td className="px-4 py-2.5 text-muted">{s.source ?? "—"}</td>
-                <td className="px-4 py-2.5">
-                  {s.unsubAt ? (
-                    <span className="text-xs text-clay">Unsubscribed</span>
-                  ) : (
-                    <span className="text-xs text-forest">Active</span>
-                  )}
-                </td>
+                <td className="px-4 py-2.5"><SubStatus unsubscribed={!!s.unsubAt} /></td>
                 <td className="px-4 py-2.5 text-xs text-muted">
                   {new Date(s.createdAt).toLocaleDateString("en-IN")}
                 </td>
@@ -76,5 +84,13 @@ export default function AdminNewsletterPage() {
         </table>
       </div>
     </div>
+  );
+}
+
+function SubStatus({ unsubscribed }: { unsubscribed: boolean }) {
+  return unsubscribed ? (
+    <span className="shrink-0 text-xs text-clay">Unsubscribed</span>
+  ) : (
+    <span className="shrink-0 text-xs text-forest">Active</span>
   );
 }

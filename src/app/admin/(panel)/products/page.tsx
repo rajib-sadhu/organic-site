@@ -111,74 +111,73 @@ export default function AdminProductsPage() {
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-paper">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="px-4 py-2">Product</th>
-                <th className="px-4 py-2">Category</th>
-                <th className="px-4 py-2">Price</th>
-                <th className="px-4 py-2">Stock</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => (
-                <tr key={p.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-3">
-                      {p.images[0] ? (
-                        <img src={p.images[0].url} alt={p.name} className="h-10 w-10 rounded-lg object-cover" />
-                      ) : (
-                        <div className="grid h-10 w-10 place-items-center rounded-lg bg-sand text-xs text-muted">—</div>
-                      )}
-                      <div>
-                        <Link href={`/admin/products/${p.id}`} className="font-medium text-ink hover:text-forest-dark">{p.name}</Link>
-                        <p className="text-xs text-muted">{p.slug}</p>
-                      </div>
+        <>
+          <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
+            {products.map((p) => {
+              const price = minPrice(p.variants);
+              const stock = totalStock(p.variants);
+              return (
+                <li key={p.id} className="flex items-center gap-3 p-3">
+                  <Thumb product={p} />
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/admin/products/${p.id}`} className="block truncate font-medium text-ink hover:text-forest-dark">{p.name}</Link>
+                    <p className="truncate text-xs text-muted">{p.category.name}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <span className="font-medium text-ink">{price != null ? formatPaise(price) : "—"}</span>
+                      <span className={stockTone(stock)}>Stock {stock}</span>
+                      <StatusLabel product={p} />
                     </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-muted">{p.category.name}</td>
-                  <td className="px-4 py-2.5 font-medium">{minPrice(p.variants) != null ? formatPaise(minPrice(p.variants)!) : "—"}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={cn("font-medium", totalStock(p.variants) === 0 ? "text-clay" : totalStock(p.variants) <= 5 ? "text-honey-dark" : "text-ink")}>
-                      {totalStock(p.variants)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {p.isActive ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-forest"><Eye className="h-3 w-3" /> Active</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted"><EyeOff className="h-3 w-3" /> Draft</span>
-                    )}
-                    {p.isFeatured && <span className="ml-1 text-xs text-honey-dark">★</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link
-                        href={`/admin/products/${p.id}`}
-                        className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(p.id, p.name)}
-                        className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
+                  </div>
+                  <RowActions product={p} onDelete={handleDelete} className="flex-col" />
+                </li>
+              );
+            })}
+            {products.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No products found.</li>}
+          </ul>
+          <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-muted">
+                  <th className="px-4 py-2">Product</th>
+                  <th className="px-4 py-2">Category</th>
+                  <th className="px-4 py-2">Price</th>
+                  <th className="px-4 py-2">Stock</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
-              ))}
-              {products.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">No products found.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {products.map((p) => (
+                  <tr key={p.id} className="border-b border-line last:border-0 hover:bg-cream/50">
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <Thumb product={p} />
+                        <div>
+                          <Link href={`/admin/products/${p.id}`} className="font-medium text-ink hover:text-forest-dark">{p.name}</Link>
+                          <p className="text-xs text-muted">{p.slug}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-muted">{p.category.name}</td>
+                    <td className="px-4 py-2.5 font-medium">{minPrice(p.variants) != null ? formatPaise(minPrice(p.variants)!) : "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={cn("font-medium", stockTone(totalStock(p.variants)))}>
+                        {totalStock(p.variants)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5"><StatusLabel product={p} /></td>
+                    <td className="px-4 py-2.5 text-right">
+                      <RowActions product={p} onDelete={handleDelete} className="justify-end" />
+                    </td>
+                  </tr>
+                ))}
+                {products.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">No products found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {pages > 1 && (
@@ -214,6 +213,53 @@ export default function AdminProductsPage() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function stockTone(stock: number) {
+  return stock === 0 ? "text-clay" : stock <= 5 ? "text-honey-dark" : "text-ink";
+}
+
+function Thumb({ product }: { product: Product }) {
+  return product.images[0] ? (
+    <img src={product.images[0].url} alt={product.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+  ) : (
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-sand text-xs text-muted">—</div>
+  );
+}
+
+function StatusLabel({ product }: { product: Product }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {product.isActive ? (
+        <span className="inline-flex items-center gap-1 text-xs text-forest"><Eye className="h-3 w-3" /> Active</span>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-xs text-muted"><EyeOff className="h-3 w-3" /> Draft</span>
+      )}
+      {product.isFeatured && <span className="text-xs text-honey-dark">★</span>}
+    </span>
+  );
+}
+
+function RowActions({ product, onDelete, className }: { product: Product; onDelete: (id: number, name: string) => void; className?: string }) {
+  return (
+    <div className={cn("flex items-center gap-1", className)}>
+      <Link
+        href={`/admin/products/${product.id}`}
+        aria-label={`Edit ${product.name}`}
+        className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </Link>
+      <button
+        type="button"
+        onClick={() => onDelete(product.id, product.name)}
+        aria-label={`Delete ${product.name}`}
+        className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

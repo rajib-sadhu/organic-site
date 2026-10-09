@@ -60,53 +60,86 @@ export default function AdminCouponsPage() {
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-paper">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="px-4 py-2">Code</th>
-                <th className="px-4 py-2">Description</th>
-                <th className="px-4 py-2">Type</th>
-                <th className="px-4 py-2">Min order</th>
-                <th className="px-4 py-2">Usage</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Expires</th>
-                <th className="px-4 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {coupons.map((c) => (
-                <tr key={c.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                  <td className="px-4 py-2.5 font-mono font-medium text-forest-dark">{c.code}</td>
-                  <td className="px-4 py-2.5 text-muted text-xs max-w-48 truncate">{c.description || "—"}</td>
-                  <td className="px-4 py-2.5">{typeLabel(c)}</td>
-                  <td className="px-4 py-2.5 text-muted">{c.minOrderPaise > 0 ? formatPaise(c.minOrderPaise) : "—"}</td>
-                  <td className="px-4 py-2.5 text-muted">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${c.isActive ? "bg-leaf-soft text-forest" : "bg-sand text-muted"}`}>
-                      {c.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-muted text-xs">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("en-IN") : "—"}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link href={`/admin/coupons/${c.id}`} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Link>
-                      <button type="button" onClick={() => handleDelete(c.id, c.code)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
+        <>
+          <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
+            {coupons.map((c) => (
+              <li key={c.id} className="flex items-start gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono font-medium text-forest-dark">{c.code}</span>
+                    <ActiveBadge active={c.isActive} />
+                  </div>
+                  {c.description && <p className="mt-0.5 truncate text-xs text-muted">{c.description}</p>}
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                    <span className="text-ink">{typeLabel(c)}</span>
+                    {c.minOrderPaise > 0 && <span>Min {formatPaise(c.minOrderPaise)}</span>}
+                    <span>Used {c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</span>
+                    {c.expiresAt && <span>Expires {new Date(c.expiresAt).toLocaleDateString("en-IN")}</span>}
+                  </div>
+                </div>
+                <RowActions href={`/admin/coupons/${c.id}`} label={c.code} onDelete={() => handleDelete(c.id, c.code)} className="flex-col" />
+              </li>
+            ))}
+            {coupons.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No coupons found.</li>}
+          </ul>
+          <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-muted">
+                  <th className="px-4 py-2">Code</th>
+                  <th className="px-4 py-2">Description</th>
+                  <th className="px-4 py-2">Type</th>
+                  <th className="px-4 py-2">Min order</th>
+                  <th className="px-4 py-2">Usage</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Expires</th>
+                  <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
-              ))}
-              {coupons.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted">No coupons found.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {coupons.map((c) => (
+                  <tr key={c.id} className="border-b border-line last:border-0 hover:bg-cream/50">
+                    <td className="px-4 py-2.5 font-mono font-medium text-forest-dark">{c.code}</td>
+                    <td className="px-4 py-2.5 text-muted text-xs max-w-48 truncate">{c.description || "—"}</td>
+                    <td className="px-4 py-2.5">{typeLabel(c)}</td>
+                    <td className="px-4 py-2.5 text-muted">{c.minOrderPaise > 0 ? formatPaise(c.minOrderPaise) : "—"}</td>
+                    <td className="px-4 py-2.5 text-muted">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
+                    <td className="px-4 py-2.5"><ActiveBadge active={c.isActive} /></td>
+                    <td className="px-4 py-2.5 text-muted text-xs">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("en-IN") : "—"}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <RowActions href={`/admin/coupons/${c.id}`} label={c.code} onDelete={() => handleDelete(c.id, c.code)} className="justify-end" />
+                    </td>
+                  </tr>
+                ))}
+                {coupons.length === 0 && (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-muted">No coupons found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function ActiveBadge({ active }: { active: boolean }) {
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${active ? "bg-leaf-soft text-forest" : "bg-sand text-muted"}`}>
+      {active ? "Active" : "Inactive"}
+    </span>
+  );
+}
+
+function RowActions({ href, label, onDelete, className }: { href: string; label: string; onDelete: () => void; className?: string }) {
+  return (
+    <div className={`flex items-center gap-1 ${className ?? ""}`}>
+      <Link href={href} aria-label={`Edit ${label}`} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
+        <Pencil className="h-3.5 w-3.5" />
+      </Link>
+      <button type="button" onClick={onDelete} aria-label={`Delete ${label}`} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay">
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }
