@@ -14,7 +14,7 @@ type OrderDetail = {
   subtotalPaise: number; discountPaise: number; shippingPaise: number; codFeePaise: number; totalPaise: number;
   couponCode: string | null; createdAt: string;
   items: { productName: string; variantLabel: string; sku: string; qty: number; unitPaise: number; linePaise: number }[];
-  invoice: { invoiceNo: string; pdfPath: string | null } | null;
+  invoice: { invoiceNo: string } | null;
 };
 
 const STATUS_FLOW = ["PENDING", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED"];
@@ -71,8 +71,8 @@ export default function AdminOrderDetailPage(props: { params: Promise<{ id: stri
           <p className="text-sm text-muted">{new Date(order.createdAt).toLocaleString("en-IN")}</p>
         </div>
         <div className="flex gap-2">
-          {order.invoice?.pdfPath && (
-            <a href={order.invoice.pdfPath} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink hover:bg-sand">
+          {(order.invoice || order.status !== "PENDING") && (
+            <a href={`/api/admin/orders/${order.id}/invoice`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink hover:bg-sand">
               <Download className="h-3.5 w-3.5" /> Invoice
             </a>
           )}

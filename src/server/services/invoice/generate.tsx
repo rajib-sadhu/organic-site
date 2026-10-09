@@ -1,9 +1,17 @@
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { writeFile, mkdir } from "fs/promises";
+import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { InvoiceDocument, type InvoiceData } from "./template";
+
+// Invoices hold customer PII: keep them out of public/ (which is served
+// statically) and hand them out only through authorized routes.
+const INVOICE_DIR = path.join(/*turbopackIgnore: true*/ process.cwd(), "storage", "invoices");
+
+function invoiceFile(pdfPath: string): string {
+  return path.join(INVOICE_DIR, path.basename(pdfPath));
+}
 
 async function generateInvoiceNo(orderId: number): Promise<string> {
   const year = new Date().getFullYear();
@@ -17,16 +25,12 @@ export async function generateInvoice(orderId: number): Promise<{ invoiceNo: str
     include: { items: true, invoice: true },
   });
 
-  if (order.invoice) {
-    const existing = order.invoice;
-    if (existing.pdfPath) {
-      const { readFile } = await import("fs/promises");
-      try {
-        const buf = await readFile(path.join(process.cwd(), "public", existing.pdfPath));
-        return { invoiceNo: existing.invoiceNo, pdfPath: existing.pdfPath, pdfBuffer: buf as Buffer };
-      } catch {
-        // file missing, regenerate
-      }
+  if (order.invoice?.pdfPath) {
+    try {
+      const pdfBuffer = await readFile(invoiceFile(order.invoice.pdfPath));
+      return { invoiceNo: order.invoice.invoiceNo, pdfPath: order.invoice.pdfPath, pdfBuffer };
+    } catch {
+      // file missing, regenerate
     }
   }
 
@@ -62,11 +66,10 @@ export async function generateInvoice(orderId: number): Promise<{ invoiceNo: str
 
   const pdfBuffer = await renderToBuffer(<InvoiceDocument data={data} />);
 
-  const dir = path.join(process.cwd(), "public", "invoices");
-  await mkdir(dir, { recursive: true });
-  const filename = `${invoiceNo.replace(/\//g, "-")}.pdf`;
-  const pdfPath = `/invoices/${filename}`;
-  await writeFile(path.join(dir, filename), pdfBuffer);
+  // Stored as a bare filename, resolved against the private invoice dir.
+  const pdfPath = `${invoiceNo.replace(/[^A-Za-z0-9-]/g, "-")}.pdf`;
+  await mkdir(INVOICE_DIR, { recursive: true });
+  await writeFile(invoiceFile(pdfPath), pdfBuffer);
 
   if (order.invoice) {
     await prisma.invoice.update({
