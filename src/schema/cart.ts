@@ -30,6 +30,12 @@ export const removeCouponSchema = z.object({
   action: z.literal("removeCoupon"),
 });
 
+// Captured at checkout as soon as the shopper enters it (abandoned-cart reminders).
+export const setEmailSchema = z.object({
+  action: z.literal("setEmail"),
+  email: z.string().trim().toLowerCase().email().max(191),
+});
+
 export const cartActionSchema = z.discriminatedUnion("action", [
   addToCartSchema,
   setQtySchema,
@@ -37,6 +43,7 @@ export const cartActionSchema = z.discriminatedUnion("action", [
   clearCartSchema,
   applyCouponSchema,
   removeCouponSchema,
+  setEmailSchema,
 ]);
 
 export type CartAction = z.infer<typeof cartActionSchema>;

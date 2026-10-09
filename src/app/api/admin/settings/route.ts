@@ -1,6 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/server/lib/admin-auth";
+import { z } from "zod";
+import { requirePermission, hasPermission, type AdminSession } from "@/server/lib/admin-auth";
+
+// Only these fields are writable; anything else in the body is ignored.
+const settingsUpdateSchema = z
+  .object({
+    storeName: z.string().trim().min(1).max(191),
+    storeEmail: z.string().trim().email().max(191).nullable(),
+    flatShippingPaise: z.number().int().min(0),
+    freeShipOverPaise: z.number().int().min(0).nullable(),
+    codFeePaise: z.number().int().min(0),
+    codOtpRequired: z.boolean(),
+    gstEnabled: z.boolean(),
+    announcementText: z.string().trim().max(191).nullable(),
+    announcementHref: z.string().trim().max(191).nullable(),
+    featureCardGrid: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+    abandonedCartOn: z.boolean(),
+    abandonedCartCouponId: z.number().int().positive().nullable(),
+  })
+  .partial();
 
 export async function GET() {
   try {
@@ -18,19 +37,38 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+  let session: AdminSession;
   try {
-    await requirePermission("settings.manage");
+    session = await requirePermission("settings.manage");
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  const parsed = settingsUpdateSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return NextResponse.json({ error: `${issue?.path.join(".") || "body"}: ${issue?.message ?? "Invalid"}` }, { status: 400 });
+  }
+  const data = parsed.data;
+
+  const current = await prisma.setting.findUnique({ where: { id: 1 }, select: { codOtpRequired: true } });
+  if (
+    data.codOtpRequired !== undefined &&
+    data.codOtpRequired !== (current?.codOtpRequired ?? false) &&
+    !hasPermission(session, "otp.toggle")
+  ) {
+    return NextResponse.json({ error: "You don't have permission to change COD OTP." }, { status: 403 });
+  }
+
+  if (data.abandonedCartCouponId != null) {
+    const coupon = await prisma.coupon.findUnique({ where: { id: data.abandonedCartCouponId }, select: { id: true } });
+    if (!coupon) return NextResponse.json({ error: "Selected coupon no longer exists." }, { status: 400 });
+  }
 
   const settings = await prisma.setting.upsert({
     where: { id: 1 },
-    create: { id: 1, ...body },
-    update: body,
+    create: { id: 1, ...data },
+    update: data,
   });
 
   return NextResponse.json({ settings });

@@ -106,6 +106,20 @@ export default function CheckoutPage() {
     rzp.open();
   };
 
+  // Save the email on the cart as soon as it's entered, so a reminder can be
+  // sent if the checkout is abandoned. Best effort — never blocks checkout.
+  const [capturedEmail, setCapturedEmail] = useState<string | null>(null);
+  const captureEmail = (value: string) => {
+    const email = value.trim().toLowerCase();
+    if (email === capturedEmail || !checkoutSchema.shape.email.safeParse(email).success) return;
+    setCapturedEmail(email);
+    fetch("/api/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "setEmail", email }),
+    }).catch(() => {});
+  };
+
   const requestOtp = async (phone: string) => {
     setSendingOtp(true);
     try {
@@ -213,7 +227,15 @@ export default function CheckoutPage() {
               <h2 className="font-display text-xl text-forest-dark">Contact</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <Field label="Email" error={errors.email?.message}>
-                  <input type="email" autoComplete="email" {...register("email")} className={inputCn} />
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    {...register("email", { onBlur: (e) => captureEmail(e.target.value) })}
+                    className={inputCn}
+                  />
+                  <span className="mt-1 block text-xs text-muted">
+                    We may email you a reminder about your cart. Unsubscribe anytime.
+                  </span>
                 </Field>
                 <Field label="Phone" error={errors.phone?.message}>
                   <input type="tel" autoComplete="tel" {...register("phone")} className={inputCn} />

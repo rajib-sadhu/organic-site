@@ -4,6 +4,8 @@ import type { NotifChannel } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { formatPaise } from "@/lib/money";
 import { siteConfig } from "@/lib/site";
+import { findCart } from "@/server/repositories/cart";
+import { validateCoupon } from "@/server/services/coupon";
 
 export type RenderedMessage = {
   subject: string | null;
@@ -22,6 +24,7 @@ type Template<D> = {
 export type TemplateData = {
   "order.confirmation": { orderId: number };
   "cod.otp": { code: string; ttlMinutes: number };
+  "cart.reminder": { cartId: string; reminderNo: number; couponCode: string | null };
 };
 
 export type TemplateName = keyof TemplateData;
@@ -144,9 +147,93 @@ const codOtp: Template<TemplateData["cod.otp"]> = {
   redact: (body) => body.replace(/\b\d{6}\b/g, REDACTED),
 };
 
+const cartReminder: Template<TemplateData["cart.reminder"]> = {
+  channel: "EMAIL",
+  async render({ cartId, reminderNo, couponCode }) {
+    const cart = await findCart(cartId);
+    if (!cart?.recoveryToken || !cart.email || cart.items.length === 0) {
+      throw new Error(`Cart ${cartId} is no longer eligible for a reminder.`);
+    }
+
+    const subtotalPaise = cart.items.reduce((sum, ci) => sum + ci.variant.pricePaise * ci.qty, 0);
+    // Only offer a coupon this shopper could actually apply right now.
+    const coupon = couponCode ? await validateCoupon(couponCode, subtotalPaise, cart.email) : null;
+    const offer = coupon?.valid ? coupon : null;
+
+    const recoverUrl = `${siteConfig.url}/cart/recover/${cart.recoveryToken}`;
+    const unsubscribeUrl = `${siteConfig.url}/cart/unsubscribe/${cart.recoveryToken}`;
+
+    const itemsHtml = cart.items
+      .map((ci) => {
+        const image = ci.variant.product.images[0]?.url;
+        const imageUrl = image && image.startsWith("/") ? `${siteConfig.url}${image}` : image;
+        return `<tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f1ebdf;width:64px">${imageUrl ? `<img src="${esc(imageUrl)}" alt="" width="56" height="56" style="border-radius:10px;object-fit:cover;display:block">` : ""}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f1ebdf">${esc(ci.variant.product.name)}<br><span style="color:#6d655a;font-size:13px">${esc(ci.variant.label)} × ${ci.qty}</span></td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1ebdf;text-align:right;white-space:nowrap">${formatPaise(ci.variant.pricePaise * ci.qty)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const heading = reminderNo === 1 ? "You left something in your cart" : "Still thinking it over?";
+    const intro =
+      reminderNo === 1
+        ? "Your organic goodies are waiting. Pick up right where you left off."
+        : "Your cart is still saved — but stock moves quickly, so we can't hold it forever.";
+
+    const body = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#faf8f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#211e19">
+<div style="max-width:600px;margin:0 auto;padding:32px 20px">
+  <div style="text-align:center;margin-bottom:32px">
+    <h1 style="color:#24503a;font-size:28px;margin:0">${esc(siteConfig.name)}</h1>
+    <p style="color:#6d655a;font-size:14px;margin:4px 0 0">${esc(siteConfig.tagline)}</p>
+  </div>
+
+  <div style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e7e1d3">
+    <h2 style="color:#24503a;font-size:22px;margin:0 0 8px">${heading}</h2>
+    <p style="color:#6d655a;margin:0 0 24px">${intro}</p>
+
+    <table style="width:100%;font-size:14px;border-collapse:collapse">${itemsHtml}</table>
+
+    <p style="margin:16px 0 0;text-align:right;font-size:16px;color:#24503a"><strong>Subtotal: ${formatPaise(subtotalPaise)}</strong></p>
+
+    ${
+      offer
+        ? `<div style="margin-top:24px;padding:16px;border:1px dashed #d9923f;border-radius:12px;background:#fdf6ec;text-align:center">
+      <p style="margin:0;color:#bf7a2c;font-size:14px">A little something to help you decide</p>
+      <p style="margin:6px 0 0;font-size:18px;color:#211e19"><strong>${esc(offer.label)}</strong> with code <strong style="font-family:monospace;letter-spacing:1px">${esc(offer.code)}</strong></p>
+    </div>`
+        : ""
+    }
+
+    <div style="text-align:center;margin-top:28px">
+      <a href="${recoverUrl}" style="display:inline-block;background:#24503a;color:#faf8f3;text-decoration:none;padding:14px 32px;border-radius:999px;font-size:14px;font-weight:600">Return to your cart</a>
+    </div>
+  </div>
+
+  <p style="text-align:center;color:#6d655a;font-size:12px;margin-top:32px">
+    You're receiving this because you started a checkout at ${esc(siteConfig.name)}.<br>
+    <a href="${unsubscribeUrl}" style="color:#6d655a">Stop cart reminders</a>
+  </p>
+</div>
+</body>
+</html>`;
+
+    return {
+      subject: offer ? `${heading} — ${offer.label} inside` : heading,
+      body,
+    };
+  },
+  redact: (body) => body.replace(/\/cart\/(recover|unsubscribe)\/[A-Za-z0-9_-]+/g, `/cart/$1/${REDACTED}`),
+};
+
 export const templates: { [K in TemplateName]: Template<TemplateData[K]> } = {
   "order.confirmation": orderConfirmation,
   "cod.otp": codOtp,
+  "cart.reminder": cartReminder,
 };
 
 export function redactBody(template: string, body: string): string {

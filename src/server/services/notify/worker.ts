@@ -2,6 +2,7 @@
 // Started once per server instance from src/instrumentation.ts.
 import cron from "node-cron";
 import { prisma } from "@/lib/prisma";
+import { queueAbandonedCartReminders } from "@/server/services/abandoned-cart";
 import { processDueNotifications, purgeOldNotifications } from "./index";
 
 const globalForWorker = globalThis as unknown as { notificationWorkerStarted?: boolean };
@@ -22,6 +23,19 @@ export function startNotificationWorker(): void {
       }
     },
     { name: "notification-outbox", noOverlap: true },
+  );
+
+  cron.schedule(
+    "*/10 * * * *",
+    async () => {
+      try {
+        const n = await queueAbandonedCartReminders();
+        if (n > 0) console.log(`[abandoned-cart] queued ${n} reminder(s)`);
+      } catch (e) {
+        console.error("[abandoned-cart] run failed:", e);
+      }
+    },
+    { name: "abandoned-cart", noOverlap: true },
   );
 
   cron.schedule(

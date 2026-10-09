@@ -109,7 +109,14 @@ model Cart {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
+  // Abandoned-cart recovery (ARCHITECTURE §6.10)
+  recoveryToken  String?   @unique // random; set when the email is captured; restores this cart from the reminder link
+  activityAt     DateTime  @default(now()) // last item/coupon change — reminders are timed from here
+  remindersSent  Int       @default(0)
+  lastReminderAt DateTime?
+
   @@index([couponId])
+  @@index([remindersSent, activityAt])
 }
 
 model CartItem {
@@ -129,23 +136,24 @@ model CartItem {
 // ---------------------------------------------------------------------------
 
 model Coupon {
-  id            Int        @id @default(autoincrement())
-  code          String     @unique
-  description   String?    @db.Text
-  type          CouponType
-  valuePaise    Int? // for FLAT
-  percent       Int? // for PERCENT (0-100)
-  minOrderPaise Int        @default(0)
-  maxUses       Int?
-  usedCount     Int        @default(0)
-  perEmailLimit Int?
-  startsAt      DateTime?
-  expiresAt     DateTime?
-  isActive      Boolean    @default(true)
-  carts         Cart[]
-  orders        Order[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id                    Int        @id @default(autoincrement())
+  code                  String     @unique
+  description           String?    @db.Text
+  type                  CouponType
+  valuePaise            Int? // for FLAT
+  percent               Int? // for PERCENT (0-100)
+  minOrderPaise         Int        @default(0)
+  maxUses               Int?
+  usedCount             Int        @default(0)
+  perEmailLimit         Int?
+  startsAt              DateTime?
+  expiresAt             DateTime?
+  isActive              Boolean    @default(true)
+  carts                 Cart[]
+  orders                Order[]
+  abandonedCartSettings Setting[]  @relation("AbandonedCartCoupon")
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 }
 
 // ---------------------------------------------------------------------------
@@ -301,18 +309,31 @@ model RolePermission {
 // ---------------------------------------------------------------------------
 
 model Setting {
-  id                Int      @id @default(1)
-  storeName         String   @default("Organic Foods")
-  storeEmail        String?
-  flatShippingPaise Int      @default(0)
-  freeShipOverPaise Int? // null = no free-ship threshold
-  codFeePaise       Int      @default(0)
-  codOtpRequired    Boolean  @default(false) // admin toggle (see ARCHITECTURE 6.5/7.1)
-  gstEnabled        Boolean  @default(false)
-  announcementText  String? // promo bar copy; null = bar hidden
-  announcementHref  String?
-  featureCardGrid   Int      @default(3) // home page feature cards grid: 2, 3, or 4 columns
-  updatedAt         DateTime @updatedAt
+  id                    Int      @id @default(1)
+  storeName             String   @default("Organic Foods")
+  storeEmail            String?
+  flatShippingPaise     Int      @default(0)
+  freeShipOverPaise     Int? // null = no free-ship threshold
+  codFeePaise           Int      @default(0)
+  codOtpRequired        Boolean  @default(false) // admin toggle (see ARCHITECTURE 6.5/7.1)
+  gstEnabled            Boolean  @default(false)
+  announcementText      String? // promo bar copy; null = bar hidden
+  announcementHref      String?
+  featureCardGrid       Int      @default(3) // home page feature cards grid: 2, 3, or 4 columns
+  abandonedCartOn       Boolean  @default(false) // send cart reminders (§6.10)
+  abandonedCartCoupon   Coupon?  @relation("AbandonedCartCoupon", fields: [abandonedCartCouponId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  abandonedCartCouponId Int? // optional coupon offered in the last reminder
+  updatedAt             DateTime @updatedAt
+}
+
+// Emails that asked to stop a kind of message (e.g. cart reminders).
+model EmailOptOut {
+  id        Int      @id @default(autoincrement())
+  email     String
+  scope     String // "cart_reminder"
+  createdAt DateTime @default(now())
+
+  @@unique([email, scope])
 }
 
 // ---------------------------------------------------------------------------
