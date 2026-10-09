@@ -3,6 +3,7 @@
 import cron from "node-cron";
 import { prisma } from "@/lib/prisma";
 import { queueAbandonedCartReminders } from "@/server/services/abandoned-cart";
+import { expireUnpaidOrders } from "@/server/services/payment-expiry";
 import { processDueNotifications, purgeOldNotifications } from "./index";
 
 const globalForWorker = globalThis as unknown as { notificationWorkerStarted?: boolean };
@@ -36,6 +37,19 @@ export function startNotificationWorker(): void {
       }
     },
     { name: "abandoned-cart", noOverlap: true },
+  );
+
+  cron.schedule(
+    "*/5 * * * *",
+    async () => {
+      try {
+        const { cancelled, recovered } = await expireUnpaidOrders();
+        if (cancelled || recovered) console.log(`[payment-expiry] cancelled ${cancelled}, recovered ${recovered}`);
+      } catch (e) {
+        console.error("[payment-expiry] run failed:", e);
+      }
+    },
+    { name: "payment-expiry", noOverlap: true },
   );
 
   cron.schedule(

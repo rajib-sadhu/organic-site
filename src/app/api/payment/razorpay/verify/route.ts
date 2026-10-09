@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyPaymentSignature } from "@/server/lib/razorpay";
 import { clearCartToken } from "@/server/lib/cart-token";
 import { queueOrderConfirmation } from "@/server/services/notify";
+import { markOrderPaid } from "@/server/services/order";
 
 const schema = z.object({
   razorpay_order_id: z.string(),
@@ -34,28 +35,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payment record not found." }, { status: 404 });
   }
 
-  if (payment.status === "PAID") {
-    return NextResponse.json({
-      success: true,
-      orderNo: payment.order.orderNo,
-      trackingToken: payment.order.trackingToken,
-    });
-  }
-
-  await prisma.$transaction([
-    prisma.payment.update({
-      where: { id: payment.id },
-      data: { rzpPaymentId: razorpay_payment_id, rzpSignature: razorpay_signature, status: "PAID" },
-    }),
-    prisma.order.update({
-      where: { id: payment.orderId },
-      data: { paymentStatus: "PAID", status: "CONFIRMED" },
-    }),
-  ]);
+  const result = await markOrderPaid({
+    paymentId: payment.id,
+    rzpPaymentId: razorpay_payment_id,
+    rzpSignature: razorpay_signature,
+  });
 
   await clearCartToken();
 
-  await queueOrderConfirmation(payment.orderId, payment.order.email);
+  if (result.status === "confirmed") {
+    await queueOrderConfirmation(payment.orderId, payment.order.email);
+  }
+  if (result.status === "paid_needs_refund") {
+    return NextResponse.json(
+      { error: "Payment received, but this order had expired and an item sold out. You'll be refunded in full." },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({
     success: true,

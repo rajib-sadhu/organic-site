@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/server/lib/admin-auth";
+import { cancelOrder } from "@/server/services/order";
 
 export async function GET(req: Request) {
   try {
@@ -56,6 +57,14 @@ export async function PATCH(req: Request) {
   const validStatuses = ["PENDING", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"];
   if (!validStatuses.includes(body.status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+  }
+
+  // Cancelling returns the stock and coupon use; other transitions just set the status.
+  if (body.status === "CANCELLED") {
+    const cancelled = await cancelOrder(body.id);
+    if (!cancelled) {
+      return NextResponse.json({ error: "This order can no longer be cancelled." }, { status: 409 });
+    }
   }
 
   const order = await prisma.order.update({

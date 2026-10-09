@@ -21,12 +21,17 @@ declare global {
   }
 }
 
+const CHECKOUT_TIMEOUT_SECONDS = 15 * 60;
+
 export default function CheckoutPage() {
   const router = useRouter();
   const clearLocal = useCart((s) => s.clear);
   const [cart, setCart] = useState<ServerCart | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Set once an online order exists: the cart is already converted, so retries
+  // must reopen payment for this same order rather than place a new one.
+  const [pendingPayment, setPendingPayment] = useState<{ rzpConfig: Record<string, unknown>; orderNo: string; totalPaise: number } | null>(null);
   const [rzpReady, setRzpReady] = useState(false);
   // COD-OTP: set once a code has been sent to this phone; the next submit carries the code.
   const [otpPhone, setOtpPhone] = useState<string | null>(null);
@@ -76,6 +81,8 @@ export default function CheckoutPage() {
       order_id: rzpConfig.orderId,
       prefill: { name: rzpConfig.name, email: rzpConfig.email, contact: rzpConfig.phone },
       theme: { color: "#24503a" },
+      // Close the popup before the server expires the unpaid order (payment-expiry, 30 min).
+      timeout: CHECKOUT_TIMEOUT_SECONDS,
       handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         try {
           const verifyRes = await fetch("/api/payment/razorpay/verify", {
@@ -96,7 +103,7 @@ export default function CheckoutPage() {
       },
       modal: {
         ondismiss: () => {
-          toast.info("Payment cancelled. Your order is saved — you can retry.");
+          toast.info("Payment not completed. Your order is held for a few minutes — tap “Complete payment” to finish.");
           setSubmitting(false);
         },
       },
@@ -166,6 +173,7 @@ export default function CheckoutPage() {
       }
 
       if (json.requiresPayment && json.razorpay) {
+        setPendingPayment({ rzpConfig: json.razorpay, orderNo: json.orderNo, totalPaise: json.totalPaise });
         openRazorpay(json.razorpay, json.orderNo);
         return;
       }
@@ -395,26 +403,49 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={
-                submitting ||
-                sendingOtp ||
-                (paymentMethod === "RAZORPAY" && !rzpReady) ||
-                (otpStepActive && otpCode.length !== 6)
-              }
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-medium text-cream transition-colors hover:bg-forest-dark disabled:opacity-60"
-            >
-              {submitting || sendingOtp ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> {sendingOtp ? "Sending code…" : "Processing…"}
-                </>
-              ) : otpStepActive ? (
-                `Verify & place order · ${formatPaise(displayTotal)}`
-              ) : (
-                `Place order · ${formatPaise(displayTotal)}`
-              )}
-            </button>
+            {pendingPayment ? (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitting(true);
+                    openRazorpay(pendingPayment.rzpConfig, pendingPayment.orderNo);
+                  }}
+                  disabled={submitting || !rzpReady}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-medium text-cream transition-colors hover:bg-forest-dark disabled:opacity-60"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                    </>
+                  ) : (
+                    `Complete payment · ${formatPaise(pendingPayment.totalPaise)}`
+                  )}
+                </button>
+                <p className="text-center text-xs text-muted">Order {pendingPayment.orderNo} is reserved for you.</p>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  sendingOtp ||
+                  (paymentMethod === "RAZORPAY" && !rzpReady) ||
+                  (otpStepActive && otpCode.length !== 6)
+                }
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-medium text-cream transition-colors hover:bg-forest-dark disabled:opacity-60"
+              >
+                {submitting || sendingOtp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> {sendingOtp ? "Sending code…" : "Processing…"}
+                  </>
+                ) : otpStepActive ? (
+                  `Verify & place order · ${formatPaise(displayTotal)}`
+                ) : (
+                  `Place order · ${formatPaise(displayTotal)}`
+                )}
+              </button>
+            )}
           </aside>
         </form>
       </Container>

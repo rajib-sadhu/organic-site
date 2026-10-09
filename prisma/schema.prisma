@@ -79,19 +79,20 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id          Int        @id @default(autoincrement())
-  product     Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id          Int         @id @default(autoincrement())
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId   Int
   label       String // "500g", "10 kg"
-  sku         String     @unique
+  sku         String      @unique
   pricePaise  Int // sale/tax-inclusive price
   mrpPaise    Int? // MRP for strikethrough; null = no discount shown
   weightGrams Int? // weight in grams for per-unit pricing (10kg = 10000)
-  stock       Int        @default(0)
-  isActive    Boolean    @default(true)
+  stock       Int         @default(0)
+  isActive    Boolean     @default(true)
   cartItems   CartItem[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
 
   @@index([productId])
 }
@@ -205,9 +206,12 @@ model Order {
 }
 
 model OrderItem {
-  id           Int    @id @default(autoincrement())
-  order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id           Int             @id @default(autoincrement())
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId      Int
+  // live link for stock release on cancel (null if the variant is later deleted)
+  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  variantId    Int?
   // snapshot of product/variant at purchase time
   productName  String
   variantLabel String
@@ -217,6 +221,7 @@ model OrderItem {
   linePaise    Int
 
   @@index([orderId])
+  @@index([variantId])
 }
 
 model Payment {
