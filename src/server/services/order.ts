@@ -14,10 +14,18 @@ type CheckoutAddress = {
   shipPincode: string;
 };
 
+type ProviderPayment = { provider: string; rzpOrderId: string };
+
 type CreateOrderInput = {
   cart: CartWithDetails;
   address: CheckoutAddress;
   paymentMethod: PaymentMethod;
+  /**
+   * Creates the order at the payment provider. Runs after validation but
+   * before anything is written, so a provider failure leaves no order, no
+   * reserved stock and an intact cart. The result is saved with the order.
+   */
+  createProviderPayment?: (order: { orderNo: string; totalPaise: number }) => Promise<ProviderPayment>;
 };
 
 async function generateOrderNo(): Promise<string> {
@@ -50,6 +58,10 @@ export async function createOrder(input: CreateOrderInput) {
   }
 
   const orderNo = await generateOrderNo();
+
+  const providerPayment = input.createProviderPayment
+    ? await input.createProviderPayment({ orderNo, totalPaise: totals.totalPaise })
+    : null;
 
   const order = await prisma.$transaction(async (tx) => {
     for (const ci of cart.items) {
@@ -95,11 +107,23 @@ export async function createOrder(input: CreateOrderInput) {
       include: { items: true },
     });
 
+    const payment = providerPayment
+      ? await tx.payment.create({
+          data: {
+            orderId: created.id,
+            provider: providerPayment.provider,
+            rzpOrderId: providerPayment.rzpOrderId,
+            amountPaise: totals.totalPaise,
+            status: "PENDING",
+          },
+        })
+      : null;
+
     if (cart.coupon) {
       await tx.coupon.update({ where: { id: cart.coupon.id }, data: { usedCount: { increment: 1 } } });
     }
 
-    return created;
+    return { ...created, payment };
   });
 
   await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });

@@ -31,8 +31,10 @@ export async function createRazorpayOrder(amountPaise: number, receipt: string) 
 export function verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
   if (!KEY_SECRET) return false;
   const body = `${orderId}|${paymentId}`;
-  const expected = crypto.createHmac("sha256", KEY_SECRET).update(body).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const expected = Buffer.from(crypto.createHmac("sha256", KEY_SECRET).update(body).digest("hex"));
+  const actual = Buffer.from(signature);
+  // timingSafeEqual throws on a length mismatch; a malformed signature is simply invalid.
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
 export function verifyWebhookSignature(body: string, signature: string): boolean {

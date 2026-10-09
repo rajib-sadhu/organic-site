@@ -4,7 +4,6 @@ import { getCartToken, clearCartToken } from "@/server/lib/cart-token";
 import * as cartRepo from "@/server/repositories/cart";
 import { createOrder } from "@/server/services/order";
 import { createRazorpayOrder, getPublicKeyId } from "@/server/lib/razorpay";
-import { prisma } from "@/lib/prisma";
 import { queueOrderConfirmation } from "@/server/services/notify";
 import { getSettings } from "@/server/services/settings";
 import { consumeCodOtp, releaseCodOtp, OtpError } from "@/server/services/otp";
@@ -50,7 +49,18 @@ export async function POST(req: Request) {
 
   let order: Awaited<ReturnType<typeof createOrder>>;
   try {
-    order = await createOrder({ cart, address, paymentMethod });
+    order = await createOrder({
+      cart,
+      address,
+      paymentMethod,
+      createProviderPayment:
+        paymentMethod === "RAZORPAY"
+          ? async ({ orderNo, totalPaise }) => {
+              const rzpOrder = await createRazorpayOrder(totalPaise, orderNo);
+              return { provider: "razorpay", rzpOrderId: String(rzpOrder.id) };
+            }
+          : undefined,
+    });
   } catch (e) {
     if (otpChallengeId) await releaseCodOtp(otpChallengeId);
     const message = e instanceof Error ? e.message : "Checkout failed.";
@@ -58,22 +68,9 @@ export async function POST(req: Request) {
   }
 
   try {
-
     await cartRepo.setEmail(cart.id, address.email);
 
     if (paymentMethod === "RAZORPAY") {
-      const rzpOrder = await createRazorpayOrder(order.totalPaise, order.orderNo);
-
-      await prisma.payment.create({
-        data: {
-          orderId: order.id,
-          provider: "razorpay",
-          rzpOrderId: String(rzpOrder.id),
-          amountPaise: order.totalPaise,
-          status: "PENDING",
-        },
-      });
-
       return NextResponse.json({
         success: true,
         requiresPayment: true,
@@ -83,7 +80,7 @@ export async function POST(req: Request) {
         totalPaise: order.totalPaise,
         razorpay: {
           keyId: getPublicKeyId(),
-          orderId: rzpOrder.id,
+          orderId: order.payment?.rzpOrderId,
           amount: order.totalPaise,
           currency: "INR",
           name: address.shipName,
