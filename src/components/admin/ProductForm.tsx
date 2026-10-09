@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Star, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
   const [nutritionVal, setNutritionVal] = useState("");
 
   const {
-    register, handleSubmit, control, watch, setValue, getValues,
+    register, handleSubmit, control, setValue, getValues,
     formState: { errors },
   } = useForm<TProductForm>({
     resolver: zodResolver(productSchema),
@@ -51,12 +51,13 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "variants" });
+  const variantValues = useWatch({ control, name: "variants" });
 
   useEffect(() => {
     fetch("/api/admin/categories").then((r) => r.json()).then((j) => setCategories(j.categories ?? []));
   }, []);
 
-  const name = watch("name");
+  const name = useWatch({ control, name: "name" });
   useEffect(() => {
     if (mode === "create" && name) {
       const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
@@ -105,13 +106,13 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
     }
   };
 
-  const tags = watch("tags");
+  const tags = useWatch({ control, name: "tags" });
   const toggleTag = (tag: string) => {
     const current = getValues("tags");
     setValue("tags", current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]);
   };
 
-  const highlights = watch("highlights");
+  const highlights = useWatch({ control, name: "highlights" });
   const addHighlight = () => {
     if (highlightInput.trim()) {
       setValue("highlights", [...getValues("highlights"), highlightInput.trim()]);
@@ -119,7 +120,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
     }
   };
 
-  const benefits = watch("benefits");
+  const benefits = useWatch({ control, name: "benefits" });
   const addBenefit = () => {
     if (benefitInput.trim()) {
       setValue("benefits", [...getValues("benefits"), benefitInput.trim()]);
@@ -127,7 +128,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
     }
   };
 
-  const nutritionInfo = watch("nutritionInfo");
+  const nutritionInfo = useWatch({ control, name: "nutritionInfo" });
   const addNutrition = () => {
     if (nutritionKey.trim() && nutritionVal.trim()) {
       setValue("nutritionInfo", { ...(getValues("nutritionInfo") ?? {}), [nutritionKey.trim()]: nutritionVal.trim() });
@@ -287,7 +288,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
                     <div className="w-28">
                       <label className="text-xs text-muted">Sale price (paise)</label>
                       <input type="number" {...register(`variants.${idx}.pricePaise`, { valueAsNumber: true })} className="input text-sm" />
-                      {watch(`variants.${idx}.pricePaise`) > 0 && <span className="text-xs text-muted">{formatPaise(Number(watch(`variants.${idx}.pricePaise`)))}</span>}
+                      {variantValues?.[idx]?.pricePaise > 0 && <span className="text-xs text-muted">{formatPaise(Number(variantValues[idx].pricePaise))}</span>}
                     </div>
                     <div className="w-28">
                       <label className="text-xs text-muted">MRP (paise)</label>

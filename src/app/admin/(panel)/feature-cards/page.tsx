@@ -59,30 +59,29 @@ export default function AdminFeatureCardsPage() {
 
   const [uploading, setUploading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [cardsRes, settingsRes] = await Promise.all([
-        fetch("/api/admin/feature-cards"),
-        fetch("/api/admin/settings"),
-      ]);
-      if (!cardsRes.ok || !settingsRes.ok) {
-        toast.error("Failed to load feature cards.");
-        return;
-      }
-      const cardsJson = await cardsRes.json();
-      const settingsJson = await settingsRes.json();
-      setCards(cardsJson.cards ?? []);
-      setGrid(settingsJson.settings?.featureCardGrid ?? 3);
-    } catch {
-      toast.error("Failed to load feature cards.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    Promise.all([fetch("/api/admin/feature-cards"), fetch("/api/admin/settings")])
+      .then(async ([cardsRes, settingsRes]) => {
+        if (!cardsRes.ok || !settingsRes.ok) throw new Error("Failed to load feature cards.");
+        return [await cardsRes.json(), await settingsRes.json()] as const;
+      })
+      .then(([cardsJson, settingsJson]) => {
+        if (isStale()) return;
+        setCards(cardsJson.cards ?? []);
+        setGrid(settingsJson.settings?.featureCardGrid ?? 3);
+      })
+      .catch(() => {
+        if (!isStale()) toast.error("Failed to load feature cards.");
+      })
+      .finally(() => {
+        if (!isStale()) setLoading(false);
+      }), []);
 
   useEffect(() => {
-    load();
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
   }, [load]);
 
   const saveGrid = async (cols: number) => {

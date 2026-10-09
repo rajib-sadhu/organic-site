@@ -20,20 +20,25 @@ export default function AdminUsersPage() {
   const [passwordModal, setPasswordModal] = useState<AdminUser | null>(null);
   const [editModal, setEditModal] = useState<AdminUser | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [uRes, rRes, authRes] = await Promise.all([
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    Promise.all([
       fetch("/api/admin/users").then((r) => r.json()),
       fetch("/api/admin/roles").then((r) => r.json()),
       fetch("/api/admin/auth").then((r) => r.json()),
-    ]);
-    setUsers(uRes.users ?? []);
-    setRoles(rRes.roles ?? []);
-    if (authRes.user) setCurrentUser({ id: authRes.user.id, isSystem: authRes.user.isSystem, permissions: authRes.user.permissions ?? [] });
-    setLoading(false);
-  }, []);
+    ]).then(([uRes, rRes, authRes]) => {
+      if (isStale()) return;
+      setUsers(uRes.users ?? []);
+      setRoles(rRes.roles ?? []);
+      if (authRes.user) setCurrentUser({ id: authRes.user.id, isSystem: authRes.user.isSystem, permissions: authRes.user.permissions ?? [] });
+      setLoading(false);
+    }), []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
   if (loading) return <div className="flex justify-center py-24"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>;
 

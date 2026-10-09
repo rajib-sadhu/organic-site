@@ -22,26 +22,36 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
-  const [loading, setLoading] = useState(true);
+  // Key of the query whose results are on screen; loading until it matches the current query.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
 
   const currentPage = Number(searchParams.get("page") ?? 1);
+  const queryKey = `${searchParams.get("q") ?? ""}|${currentPage}`;
+  const loading = loadedKey !== queryKey;
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) => {
     const params = new URLSearchParams();
     const q = searchParams.get("q");
     if (q) params.set("q", q);
     params.set("page", String(currentPage));
-    const res = await fetch(`/api/admin/products?${params}`);
-    const json = await res.json();
-    setProducts(json.products ?? []);
-    setTotal(json.total ?? 0);
-    setPages(json.pages ?? 1);
-    setLoading(false);
-  }, [searchParams, currentPage]);
+    return fetch(`/api/admin/products?${params}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (isStale()) return;
+        setProducts(json.products ?? []);
+        setTotal(json.total ?? 0);
+        setPages(json.pages ?? 1);
+        setLoadedKey(queryKey);
+      });
+  }, [searchParams, currentPage, queryKey]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

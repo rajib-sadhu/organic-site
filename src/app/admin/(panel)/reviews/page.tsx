@@ -19,21 +19,29 @@ export default function AdminReviewsPage() {
   const router = useRouter();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Key of the query whose results are on screen; loading until it matches the current query.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [updating, setUpdating] = useState<number | null>(null);
 
   const statusFilter = searchParams.get("status") ?? "PENDING";
+  const loading = loadedKey !== statusFilter;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/admin/reviews?status=${statusFilter}`);
-    const json = await res.json();
-    setReviews(json.reviews ?? []);
-    setTotal(json.total ?? 0);
-    setLoading(false);
-  }, [statusFilter]);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    fetch(`/api/admin/reviews?status=${statusFilter}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (isStale()) return;
+        setReviews(json.reviews ?? []);
+        setTotal(json.total ?? 0);
+        setLoadedKey(statusFilter);
+      }), [statusFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
   const moderate = async (id: number, status: string) => {
     setUpdating(id);

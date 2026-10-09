@@ -20,25 +20,35 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
-  const [loading, setLoading] = useState(true);
+  // Key of the query whose results are on screen; loading until it matches the current query.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
   const currentPage = Number(searchParams.get("page") ?? 1);
   const statusFilter = searchParams.get("status") ?? "";
+  const queryKey = `${statusFilter}|${currentPage}`;
+  const loading = loadedKey !== queryKey;
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) => {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     params.set("page", String(currentPage));
-    const res = await fetch(`/api/admin/orders?${params}`);
-    const json = await res.json();
-    setOrders(json.orders ?? []);
-    setTotal(json.total ?? 0);
-    setPages(json.pages ?? 1);
-    setLoading(false);
-  }, [statusFilter, currentPage]);
+    return fetch(`/api/admin/orders?${params}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (isStale()) return;
+        setOrders(json.orders ?? []);
+        setTotal(json.total ?? 0);
+        setPages(json.pages ?? 1);
+        setLoadedKey(queryKey);
+      });
+  }, [statusFilter, currentPage, queryKey]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
   const setFilter = (status: string) => {
     const params = new URLSearchParams();

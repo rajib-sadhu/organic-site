@@ -37,9 +37,9 @@ export function BannerCarousel() {
 
   useEffect(() => {
     if (!emblaApi) return;
-    onSelect();
-    emblaApi.on("select", onSelect);
-    return () => { emblaApi.off("select", onSelect); };
+    // Initial index is 0 (state default); reInit fires when slides change.
+    emblaApi.on("select", onSelect).on("reInit", onSelect);
+    return () => { emblaApi.off("select", onSelect).off("reInit", onSelect); };
   }, [emblaApi, onSelect]);
 
   if (!banners.length) return null;

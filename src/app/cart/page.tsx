@@ -17,9 +17,7 @@ export default function CartPage() {
   const syncFromServer = useCart((s) => s.syncFromServer);
   const setQtyLocal = useCart((s) => s.setQty);
   const removeLocal = useCart((s) => s.removeItem);
-  const clearLocal = useCart((s) => s.clear);
 
-  const [mounted, setMounted] = useState(false);
   const [serverCart, setServerCart] = useState<ServerCart | null>(null);
   const [totals, setTotals] = useState<ServerCartTotals | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,24 +26,27 @@ export default function CartPage() {
   const [couponsOpen, setCouponsOpen] = useState(false);
   const [applyingCode, setApplyingCode] = useState<string | null>(null);
 
-  const loadCart = useCallback(async () => {
-    try {
-      const cart = await fetchCart();
-      if (cart) {
-        setServerCart(cart);
-        setTotals(cart.totals);
-        syncFromServer(cart);
-      }
-    } catch {
-      // fall back to zustand state
-    } finally {
-      setLoading(false);
-    }
-  }, [syncFromServer]);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const loadCart = useCallback((isStale: () => boolean = () => false) =>
+    fetchCart()
+      .then((cart) => {
+        if (cart && !isStale()) {
+          setServerCart(cart);
+          setTotals(cart.totals);
+          syncFromServer(cart);
+        }
+      })
+      .catch(() => {
+        // fall back to zustand state
+      })
+      .finally(() => {
+        if (!isStale()) setLoading(false);
+      }), [syncFromServer]);
 
   useEffect(() => {
-    setMounted(true);
-    loadCart();
+    let stale = false;
+    loadCart(() => stale);
+    return () => { stale = true; };
   }, [loadCart]);
 
   const handleSetQty = async (variantId: number, qty: number) => {
@@ -120,7 +121,7 @@ export default function CartPage() {
     }
   };
 
-  if (!mounted || loading) {
+  if (loading) {
     return (
       <Container>
         <div className="flex items-center justify-center gap-2 py-24 text-muted">

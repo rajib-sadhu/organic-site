@@ -14,15 +14,21 @@ export default function AdminBlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch("/api/admin/blog");
-    const json = await res.json();
-    setPosts(json.posts ?? []);
-    setLoading(false);
-  }, []);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    fetch("/api/admin/blog")
+      .then((res) => res.json())
+      .then((json) => {
+        if (isStale()) return;
+        setPosts(json.posts ?? []);
+        setLoading(false);
+      }), []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
   const handleDelete = async (id: number, title: string) => {
     if (!confirm(`Delete "${title}"?`)) return;

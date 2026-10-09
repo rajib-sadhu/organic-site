@@ -42,25 +42,27 @@ export default function AdminPromoMessagesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<MessageForm>(emptyForm);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/promo-messages");
-      if (!res.ok) {
-        toast.error("Failed to load messages.");
-        return;
-      }
-      const json = await res.json();
-      setMessages(json.messages ?? []);
-    } catch {
-      toast.error("Failed to load messages.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    fetch("/api/admin/promo-messages")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load messages.");
+        return res.json();
+      })
+      .then((json) => {
+        if (!isStale()) setMessages(json.messages ?? []);
+      })
+      .catch(() => {
+        if (!isStale()) toast.error("Failed to load messages.");
+      })
+      .finally(() => {
+        if (!isStale()) setLoading(false);
+      }), []);
 
   useEffect(() => {
-    load();
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
   }, [load]);
 
   const openNew = () => {

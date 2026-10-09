@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Leaf, Menu, X } from "lucide-react";
 import { siteConfig } from "@/lib/site";
@@ -10,21 +10,23 @@ import { cn } from "@/lib/cn";
 import { CartButton } from "@/components/cart/CartButton";
 import { WishlistNavButton } from "@/components/wishlist/WishlistNavButton";
 
+function subscribeScroll(onChange: () => void) {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+}
+
 export function Navbar() {
   const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
+  const scrolled = useSyncExternalStore(subscribeScroll, () => window.scrollY > 8, () => false);
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // Close the mobile menu on route change.
-  useEffect(() => setOpen(false), [pathname]);
+  // Close the mobile menu on route change (adjust state during render, not in an effect).
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (menuPath !== pathname) {
+    setMenuPath(pathname);
+    setOpen(false);
+  }
 
   return (
     <header

@@ -16,15 +16,21 @@ export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch("/api/admin/coupons");
-    const json = await res.json();
-    setCoupons(json.coupons ?? []);
-    setLoading(false);
-  }, []);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    fetch("/api/admin/coupons")
+      .then((res) => res.json())
+      .then((json) => {
+        if (isStale()) return;
+        setCoupons(json.coupons ?? []);
+        setLoading(false);
+      }), []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
   const handleDelete = async (id: number, code: string) => {
     if (!confirm(`Delete coupon "${code}"?`)) return;

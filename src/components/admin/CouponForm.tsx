@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm<TCouponForm>({
     resolver: zodResolver(couponSchema),
@@ -41,7 +41,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
     },
   });
 
-  const couponType = watch("type");
+  const couponType = useWatch({ control, name: "type" });
 
   const onSubmit = async (data: TCouponForm) => {
     setSaving(true);

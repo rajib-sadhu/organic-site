@@ -62,7 +62,6 @@ export default function AdminBannersPage() {
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch("/api/admin/banners");
       const json = await res.json();

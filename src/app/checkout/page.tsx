@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2, ShoppingBag, Truck, CreditCard, Banknote } from "lucide-react";
 import { toast } from "sonner";
@@ -29,39 +29,39 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [rzpReady, setRzpReady] = useState(false);
 
-  const loadCart = useCallback(async () => {
-    try {
-      const c = await fetchCart();
-      setCart(c);
-    } catch {
-      // no cart
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadCart();
-  }, [loadCart]);
+    let stale = false;
+    fetchCart()
+      .then((c) => {
+        if (!stale) setCart(c);
+      })
+      .catch(() => {
+        // no cart
+      })
+      .finally(() => {
+        if (!stale) setLoading(false);
+      });
+    return () => { stale = true; };
+  }, []);
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CheckoutInput>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: { paymentMethod: "COD" },
   });
 
-  const paymentMethod = watch("paymentMethod");
+  const paymentMethod = useWatch({ control, name: "paymentMethod" });
 
   const codFee = cart?.totals.codFeePaise ?? 0;
   const totals = cart?.totals;
   const baseTotalWithoutCod = (totals?.totalPaise ?? 0) - (totals?.codFeePaise ?? 0);
   const displayTotal = paymentMethod === "COD" ? baseTotalWithoutCod + codFee : baseTotalWithoutCod;
 
-  const openRazorpay = (rzpConfig: Record<string, unknown>, orderNo: string, trackingToken: string) => {
+  const openRazorpay = (rzpConfig: Record<string, unknown>, orderNo: string) => {
     const options = {
       key: rzpConfig.keyId,
       amount: rzpConfig.amount,
@@ -117,7 +117,7 @@ export default function CheckoutPage() {
       }
 
       if (json.requiresPayment && json.razorpay) {
-        openRazorpay(json.razorpay, json.orderNo, json.trackingToken);
+        openRazorpay(json.razorpay, json.orderNo);
         return;
       }
 

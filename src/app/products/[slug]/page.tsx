@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, Star } from "lucide-react";
 import { Container } from "@/components/ui/Container";
-import { ProductMedia } from "@/components/product/ProductMedia";
 import { VariantSelector } from "@/components/product/VariantSelector";
 import { ProductBadges } from "@/components/product/ProductBadges";
 import { TrustBadges } from "@/components/product/TrustBadges";

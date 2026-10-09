@@ -22,20 +22,29 @@ export function ReviewSection({ productId }: { productId: number }) {
   const [stats, setStats] = useState<Stats>({ avg: 0, count: 0 });
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const [loading, setLoading] = useState(true);
+  // Key of the query whose results are on screen; loading until it matches the current query.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const load = useCallback(async (p: number) => {
-    setLoading(true);
-    const res = await fetch(`/api/reviews?productId=${productId}&page=${p}`);
-    const json = await res.json();
-    setReviews(json.reviews ?? []);
-    setStats(json.stats ?? { avg: 0, count: 0 });
-    setPages(json.pages ?? 1);
-    setLoading(false);
-  }, [productId]);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((p: number, isStale: () => boolean = () => false) =>
+    fetch(`/api/reviews?productId=${productId}&page=${p}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (isStale()) return;
+        setReviews(json.reviews ?? []);
+        setStats(json.stats ?? { avg: 0, count: 0 });
+        setPages(json.pages ?? 1);
+        setLoadedKey(`${productId}|${p}`);
+      }), [productId]);
 
-  useEffect(() => { load(page); }, [load, page]);
+  const loading = loadedKey !== `${productId}|${page}`;
+
+  useEffect(() => {
+    let stale = false;
+    load(page, () => stale);
+    return () => { stale = true; };
+  }, [load, page]);
 
   return (
     <section className="mt-16">

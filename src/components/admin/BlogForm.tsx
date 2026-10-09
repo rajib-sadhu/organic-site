@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Upload, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -34,17 +34,13 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
   const set = <K extends keyof BlogFormData>(key: K, value: BlogFormData[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  useEffect(() => {
-    if (mode === "create" && form.title) {
-      const slug = form.title
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
-      set("slug", slug);
-    }
-  }, [form.title, mode]);
+  // In create mode the slug follows the title as it's typed.
+  const setTitle = (title: string) =>
+    setForm((f) => ({
+      ...f,
+      title,
+      slug: mode === "create" && title ? slugify(title) : f.slug,
+    }));
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -101,7 +97,7 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
         <div className="space-y-4 lg:col-span-2">
           <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
             <Field label="Title" tip="Blog post title shown on the page and in search results">
-              <input value={form.title} onChange={(e) => set("title", e.target.value)} className="input" placeholder="10 Ways to Use Turmeric" />
+              <input value={form.title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="10 Ways to Use Turmeric" />
             </Field>
             <Field label="Slug" tip="URL-friendly identifier, auto-generated from title. e.g. /blog/10-ways-to-use-turmeric">
               <input value={form.slug} onChange={(e) => set("slug", e.target.value)} className="input" placeholder="10-ways-to-use-turmeric" />
@@ -190,6 +186,15 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
       </div>
     </form>
   );
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function Field({ label, tip, children }: { label: string; tip?: string; children: React.ReactNode }) {
