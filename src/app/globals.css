@@ -101,6 +101,28 @@ h3,
   & code { background: var(--color-sand); padding: 0.15em 0.3em; border-radius: 0.25rem; font-size: 0.9em; }
 }
 
+/* Pointer cursor on everything clickable; not-allowed when disabled.
+   Tailwind v4's preflight resets buttons to the default cursor. Base layer, so a
+   cursor-* utility on an element still wins. */
+@layer base {
+  button,
+  [role="button"],
+  a[href],
+  summary,
+  select,
+  input:is([type="checkbox"], [type="radio"], [type="file"], [type="submit"], [type="button"], [type="reset"], [type="color"], [type="range"]),
+  input[type="file"]::file-selector-button,
+  label:has(input:is([type="checkbox"], [type="radio"], [type="file"])) {
+    cursor: pointer;
+  }
+
+  :disabled,
+  [aria-disabled="true"],
+  label:has(input:is([type="checkbox"], [type="radio"], [type="file"]):disabled) {
+    cursor: not-allowed;
+  }
+}
+
 /* Hide number input spinners globally */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
