@@ -6,14 +6,17 @@ import Script from "next/script";
 import Link from "next/link";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, ShoppingBag, Truck, CreditCard, Banknote, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, ShoppingBag, Truck, CreditCard, Banknote, ShieldCheck, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Container } from "@/components/ui/Container";
 import { formatPaise } from "@/lib/money";
 import { INDIAN_STATES } from "@/lib/indian-states";
 import { checkoutSchema, type CheckoutInput } from "@/schema/checkout";
 import { fetchCart, type ServerCart } from "@/lib/cart-api";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { cartParams, rupees, track } from "@/lib/analytics";
 import { useCart } from "@/store/cart";
+import { useAccount } from "@/store/account";
 
 declare global {
   interface Window {
@@ -53,15 +56,38 @@ export default function CheckoutPage() {
     return () => { stale = true; };
   }, []);
 
+  const accountLoaded = useAccount((s) => s.loaded);
+  const accountMode = useAccount((s) => s.mode);
+  const customer = useAccount((s) => s.customer);
+
   const {
     register,
     handleSubmit,
     control,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<CheckoutInput>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: { paymentMethod: "COD" },
   });
+
+  // Fill empty fields from the account once it loads; anything the shopper typed is kept.
+  // The form mounts only after the cart loads, so wait for that too.
+  useEffect(() => {
+    if (!customer || loading) return;
+    const a = customer.address;
+    const fill: Partial<Record<keyof CheckoutInput, string | null | undefined>> = {
+      email: customer.email,
+      phone: customer.phone,
+      shipName: a?.shipName ?? customer.name,
+      shipLine1: a?.shipLine1, shipLine2: a?.shipLine2,
+      shipCity: a?.shipCity, shipState: a?.shipState, shipPincode: a?.shipPincode,
+    };
+    for (const [k, v] of Object.entries(fill) as [keyof CheckoutInput, string | null | undefined][]) {
+      if (v && !getValues(k)) setValue(k, v);
+    }
+  }, [customer, loading, getValues, setValue]);
 
   const paymentMethod = useWatch({ control, name: "paymentMethod" });
   const phone = useWatch({ control, name: "phone" });
@@ -70,6 +96,18 @@ export default function CheckoutPage() {
   const totals = cart?.totals;
   const baseTotalWithoutCod = (totals?.totalPaise ?? 0) - (totals?.codFeePaise ?? 0);
   const displayTotal = paymentMethod === "COD" ? baseTotalWithoutCod + codFee : baseTotalWithoutCod;
+
+  // GA dedupes purchase by transaction_id, so a retried payment can't double-count.
+  const trackPurchase = (orderNo: string, totalPaise: number, paymentType: string) => {
+    if (!cart) return;
+    track("purchase", {
+      ...cartParams(cart),
+      transaction_id: orderNo,
+      value: rupees(totalPaise),
+      shipping: rupees(cart.totals.shippingPaise),
+      payment_type: paymentType,
+    });
+  };
 
   const openRazorpay = (rzpConfig: Record<string, unknown>, orderNo: string) => {
     const options = {
@@ -95,6 +133,7 @@ export default function CheckoutPage() {
             toast.error(json.error ?? "Payment verification failed.");
             return;
           }
+          trackPurchase(json.orderNo, Number(rzpConfig.amount), "Razorpay");
           clearLocal();
           router.push(`/order-confirmation?orderNo=${json.orderNo}&token=${json.trackingToken}&method=razorpay`);
         } catch {
@@ -152,6 +191,7 @@ export default function CheckoutPage() {
 
   const onSubmit = async (data: CheckoutInput) => {
     setSubmitting(true);
+    if (cart) track("add_payment_info", { ...cartParams(cart), payment_type: data.paymentMethod === "COD" ? "Cash on Delivery" : "Razorpay" });
     // A code only counts for the phone it was sent to.
     const codeForPhone = data.paymentMethod === "COD" && otpPhone === data.phone ? otpCode : undefined;
     try {
@@ -162,6 +202,11 @@ export default function CheckoutPage() {
       });
       const json = await res.json();
       if (!res.ok) {
+        if (json.loginRequired) {
+          toast.error(json.error);
+          router.push("/account/login?next=/checkout");
+          return;
+        }
         if (json.otpRequired && !codeForPhone) {
           setSubmitting(false);
           await requestOtp(data.phone);
@@ -178,6 +223,7 @@ export default function CheckoutPage() {
         return;
       }
 
+      trackPurchase(json.orderNo, json.totalPaise ?? displayTotal, "Cash on Delivery");
       clearLocal();
       router.push(`/order-confirmation?orderNo=${json.orderNo}&token=${json.trackingToken}`);
     } catch {
@@ -216,12 +262,44 @@ export default function CheckoutPage() {
     );
   }
 
+  if (accountMode === "REQUIRED" && !customer) {
+    if (!accountLoaded) {
+      return (
+        <Container>
+          <div className="flex items-center justify-center gap-2 py-24 text-muted">
+            <Loader2 className="h-5 w-5 animate-spin" /> Loading checkout…
+          </div>
+        </Container>
+      );
+    }
+    return (
+      <Container>
+        <div className="mx-auto flex max-w-md flex-col items-center py-24 text-center">
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-leaf-soft text-forest">
+            <UserCheck className="h-8 w-8" />
+          </span>
+          <h1 className="mt-6 font-display text-3xl text-forest-dark">Log in to check out</h1>
+          <p className="mt-2 text-muted">You need an account to place an order. Your cart is saved.</p>
+          <div className="mt-8 flex gap-3">
+            <Link href="/account/login?next=/checkout" className="inline-flex h-12 items-center rounded-full bg-forest px-7 text-sm font-medium text-cream hover:bg-forest-dark">
+              Log in
+            </Link>
+            <Link href="/account/register?next=/checkout" className="inline-flex h-12 items-center rounded-full border border-line px-7 text-sm font-medium text-ink hover:bg-paper">
+              Create account
+            </Link>
+          </div>
+        </div>
+      </Container>
+    );
+  }
+
   const hasRzpKey = !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
   const otpStepActive = paymentMethod === "COD" && otpPhone !== null && otpPhone === phone;
 
   return (
     <div className="py-12 sm:py-16">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRzpReady(true)} />
+      <TrackEvent event="begin_checkout" params={cartParams(cart)} />
       <Container>
         <Link href="/cart" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-forest">
           <ArrowLeft className="h-4 w-4" /> Back to cart
@@ -230,6 +308,21 @@ export default function CheckoutPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-10 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-8">
+            {accountLoaded && accountMode !== "OFF" && (
+              customer ? (
+                <p className="flex items-center gap-2 rounded-xl bg-leaf-soft px-4 py-3 text-sm text-forest">
+                  <UserCheck className="h-4 w-4 shrink-0" />
+                  <span>Logged in as <span className="font-medium">{customer.email}</span>. This order will show in your account.</span>
+                </p>
+              ) : (
+                <p className="rounded-xl border border-line bg-paper px-4 py-3 text-sm text-muted">
+                  Have an account?{" "}
+                  <Link href="/account/login?next=/checkout" className="font-medium text-forest hover:text-forest-dark">Log in</Link>
+                  {" "}for faster checkout, or continue as a guest.
+                </p>
+              )
+            )}
+
             {/* Contact */}
             <section>
               <h2 className="font-display text-xl text-forest-dark">Contact</h2>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Leaf, Mail, Phone, MapPin } from "lucide-react";
 import { siteConfig } from "@/lib/site";
 import { NewsletterSignup } from "@/components/newsletter/NewsletterSignup";
+import { CookiePreferencesButton } from "@/components/analytics/ConsentBanner";
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -60,6 +61,9 @@ export function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <CookiePreferencesButton className="text-cream/70 transition-colors hover:text-honey" />
+            </li>
           </ul>
 
           <h3 className="mt-8 font-display text-sm font-semibold uppercase tracking-wider text-cream">
