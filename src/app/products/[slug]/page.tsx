@@ -15,6 +15,7 @@ import {
   getAllProductSlugs,
 } from "@/server/repositories/catalog";
 import { siteConfig } from "@/lib/site";
+import { JsonLd, absoluteUrl } from "@/components/ui/JsonLd";
 
 export const revalidate = 300;
 
@@ -71,7 +72,7 @@ export default async function ProductDetailPage({
     name: product.name,
     description: product.description,
     category: product.category.name,
-    ...(product.images[0]?.url ? { image: product.images[0].url } : {}),
+    ...(product.images[0]?.url ? { image: absoluteUrl(product.images[0].url) } : {}),
     ...(product.ratingCount > 0 ? {
       aggregateRating: {
         "@type": "AggregateRating",
@@ -199,10 +200,7 @@ export default async function ProductDetailPage({
         <ReviewSection productId={product.id} />
       </Container>
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
     </div>
   );
 }

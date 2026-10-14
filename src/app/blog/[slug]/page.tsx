@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { prisma } from "@/lib/prisma";
 import { siteConfig } from "@/lib/site";
+import { JsonLd, absoluteUrl } from "@/components/ui/JsonLd";
 
 export const revalidate = 300;
 
@@ -49,6 +50,8 @@ export async function generateMetadata({
       description: post.metaDescription ?? post.excerpt ?? undefined,
       url: `${siteConfig.url}/blog/${post.slug}`,
       publishedTime: post.publishedAt?.toISOString(),
+      modifiedTime: post.updatedAt.toISOString(),
+      ...(post.coverImage ? { images: [{ url: post.coverImage, width: 1344, height: 756 }] } : {}),
     },
   };
 }
@@ -61,6 +64,30 @@ export default async function BlogPostPage({
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) notFound();
+
+  const url = `${siteConfig.url}/blog/${post.slug}`;
+  const org = { "@type": "Organization", name: siteConfig.name, url: siteConfig.url };
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.metaDescription ?? post.excerpt ?? undefined,
+    ...(post.coverImage ? { image: absoluteUrl(post.coverImage) } : {}),
+    datePublished: (post.publishedAt ?? post.createdAt).toISOString(),
+    dateModified: post.updatedAt.toISOString(),
+    author: org,
+    publisher: { ...org, logo: { "@type": "ImageObject", url: absoluteUrl("/icon.svg") } },
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+  };
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteConfig.url },
+      { "@type": "ListItem", position: 2, name: "Blog", item: `${siteConfig.url}/blog` },
+      { "@type": "ListItem", position: 3, name: post.title, item: url },
+    ],
+  };
 
   return (
     <div className="py-10 sm:py-14">
@@ -106,6 +133,9 @@ export default async function BlogPostPage({
           />
         </article>
       </Container>
+
+      <JsonLd data={jsonLd} />
+      <JsonLd data={breadcrumbs} />
     </div>
   );
 }
