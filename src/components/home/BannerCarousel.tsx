@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -48,13 +49,16 @@ export function BannerCarousel() {
     <section className="relative">
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex">
-          {banners.map((b) => (
+          {banners.map((b, i) => (
             <div key={b.id} className="relative min-w-0 flex-[0_0_100%]">
               <div className="relative aspect-[21/9] sm:aspect-[3/1] w-full overflow-hidden">
-                <img
+                <Image
                   src={b.image}
                   alt={b.title ?? "Banner"}
-                  className="h-full w-full object-cover"
+                  fill
+                  sizes="100vw"
+                  fetchPriority={i === 0 ? "high" : undefined}
+                  className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 to-transparent" />
                 {(b.title || b.subtitle || b.ctaText) && (
