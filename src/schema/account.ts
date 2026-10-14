@@ -10,6 +10,11 @@ export const registerSchema = z.object({
   password,
 });
 
+export const registerNoPasswordSchema = z.object({
+  name: z.string().trim().min(2, "Enter your name.").max(100),
+  email,
+});
+
 export const passwordLoginSchema = z.object({ email, password: z.string().min(1, "Enter your password.").max(128) });
 
 export const codeRequestSchema = z.object({ email });
@@ -24,6 +29,7 @@ export const changePasswordSchema = z.object({
 });
 
 export const registerFromOrderSchema = z.object({ token: z.string().min(1).max(191), password });
+export const registerFromOrderNoPasswordSchema = z.object({ token: z.string().min(1).max(191) });
 
 /** Profile + saved address. Address fields reuse checkout's rules but are all optional together. */
 export const profileSchema = z.object({

@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { accountRoute, parseBody } from "@/server/lib/account-route";
-import { registerFromOrderSchema } from "@/schema/account";
+import { registerFromOrderSchema, registerFromOrderNoPasswordSchema } from "@/schema/account";
 import { registerFromOrder } from "@/server/services/account";
-import { requireAccountsEnabled, startCustomerSession } from "@/server/lib/customer-auth";
+import { requireAccountsEnabled, getPasswordMode, startCustomerSession } from "@/server/lib/customer-auth";
 
 export function POST(req: Request) {
   return accountRoute(async () => {
     await requireAccountsEnabled();
-    const { token, password } = await parseBody(req, registerFromOrderSchema);
-    const customer = await registerFromOrder(token, password);
+    const pwMode = await getPasswordMode();
+    const schema = pwMode === "OFF" ? registerFromOrderNoPasswordSchema : registerFromOrderSchema;
+    const input = await parseBody(req, schema);
+    const password = "password" in input ? (input as { password: string }).password : undefined;
+    const customer = await registerFromOrder(input.token, password);
     await startCustomerSession(customer);
     return NextResponse.json({ success: true });
   });

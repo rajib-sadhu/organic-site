@@ -330,6 +330,7 @@ model Setting {
   abandonedCartCoupon   Coupon?             @relation("AbandonedCartCoupon", fields: [abandonedCartCouponId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   abandonedCartCouponId Int? // optional coupon offered in the last reminder
   customerAccounts      CustomerAccountMode @default(OPTIONAL)
+  passwordLogin         PasswordLoginMode   @default(OPTIONAL)
   updatedAt             DateTime            @updatedAt
 }
 
@@ -501,6 +502,12 @@ enum CustomerAccountMode {
   OFF // no accounts anywhere; guest checkout only
   OPTIONAL // guest checkout + optional accounts
   REQUIRED // must be logged in to place an order
+}
+
+enum PasswordLoginMode {
+  OFF // email-code only; no password fields anywhere
+  OPTIONAL // both email-code and password login available
+  REQUIRED // must set a password on registration (email-code still available)
 }
 
 // ---------------------------------------------------------------------------

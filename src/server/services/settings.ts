@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { CustomerAccountMode } from "@/generated/prisma/client";
+import type { CustomerAccountMode, PasswordLoginMode } from "@/generated/prisma/client";
 
 export type StoreSettings = {
   flatShippingPaise: number;
@@ -7,12 +7,13 @@ export type StoreSettings = {
   codFeePaise: number;
   codOtpRequired: boolean;
   customerAccounts: CustomerAccountMode;
+  passwordLogin: PasswordLoginMode;
 };
 
 export async function getSettings(): Promise<StoreSettings> {
   const row = await prisma.setting.findFirst();
   if (!row) {
-    return { flatShippingPaise: 4900, freeShipOverPaise: 49900, codFeePaise: 3000, codOtpRequired: false, customerAccounts: "OPTIONAL" };
+    return { flatShippingPaise: 4900, freeShipOverPaise: 49900, codFeePaise: 3000, codOtpRequired: false, customerAccounts: "OPTIONAL", passwordLogin: "OPTIONAL" };
   }
   return {
     flatShippingPaise: row.flatShippingPaise,
@@ -20,5 +21,6 @@ export async function getSettings(): Promise<StoreSettings> {
     codFeePaise: row.codFeePaise,
     codOtpRequired: row.codOtpRequired,
     customerAccounts: row.customerAccounts,
+    passwordLogin: row.passwordLogin,
   };
 }

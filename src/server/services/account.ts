@@ -159,13 +159,17 @@ export async function verifyEmail(token: string) {
 
 // ---------- registration & password login ----------
 
-export async function register(input: { name: string; email: string; password: string }) {
+export async function register(input: { name: string; email: string; password?: string }) {
   const email = normalizeEmail(input.email);
   const existing = await prisma.customer.findUnique({ where: { email }, select: { id: true } });
   if (existing) throw new AccountError("An account with this email already exists. Log in instead.", 409);
 
   const customer = await prisma.customer.create({
-    data: { email, name: input.name.trim(), passwordHash: await bcrypt.hash(input.password, BCRYPT_COST) },
+    data: {
+      email,
+      name: input.name.trim(),
+      passwordHash: input.password ? await bcrypt.hash(input.password, BCRYPT_COST) : null,
+    },
   });
   await sendVerificationEmail(customer.id).catch((e) => console.error("[account] verify email failed:", e));
   return customer;
@@ -302,11 +306,10 @@ export async function changePassword(customerId: number, currentPassword: string
  * "Create an account" after checkout. The tracking token proves the shopper has this order,
  * so it's linked right away; other guest orders wait for email verification.
  */
-export async function registerFromOrder(trackingToken: string, password: string) {
+export async function registerFromOrder(trackingToken: string, password?: string) {
   const order = await prisma.order.findUnique({ where: { trackingToken } });
   if (!order) throw new AccountError("Order not found.", 404);
   if (order.customerId) throw new AccountError("This order is already linked to an account.", 409);
-  // The tracking link is long-lived (it's in the confirmation email); only honour it right after checkout.
   if (Date.now() - order.createdAt.getTime() > FROM_ORDER_WINDOW_MS) {
     throw new AccountError("This offer has expired. Create an account from the Log in page instead.", 410);
   }
@@ -320,7 +323,7 @@ export async function registerFromOrder(trackingToken: string, password: string)
       email,
       name: order.shipName,
       phone: order.phone,
-      passwordHash: await bcrypt.hash(password, BCRYPT_COST),
+      passwordHash: password ? await bcrypt.hash(password, BCRYPT_COST) : null,
       shipName: order.shipName,
       shipLine1: order.shipLine1,
       shipLine2: order.shipLine2,

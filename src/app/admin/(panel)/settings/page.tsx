@@ -12,6 +12,7 @@ type Settings = {
   announcementText: string | null; announcementHref: string | null;
   abandonedCartOn: boolean; abandonedCartCouponId: number | null;
   customerAccounts: "OFF" | "OPTIONAL" | "REQUIRED";
+  passwordLogin: "OFF" | "OPTIONAL" | "REQUIRED";
 };
 
 type CouponOption = { id: number; code: string; isActive: boolean };
@@ -20,6 +21,12 @@ const ACCOUNT_MODES = [
   { value: "OPTIONAL", label: "Optional", help: "Shoppers can check out as a guest or with an account." },
   { value: "REQUIRED", label: "Required", help: "Shoppers must log in or sign up before placing an order." },
   { value: "OFF", label: "Off", help: "No accounts: login links are hidden and everyone checks out as a guest." },
+] as const;
+
+const PASSWORD_MODES = [
+  { value: "OPTIONAL", label: "Optional", help: "Shoppers can log in with a password or an email code." },
+  { value: "REQUIRED", label: "Required", help: "Shoppers must set a password when creating an account. Email code login is still available." },
+  { value: "OFF", label: "Off", help: "Email code only. No password fields on login, registration or account pages." },
 ] as const;
 
 export default function AdminSettingsPage() {
@@ -123,6 +130,30 @@ export default function AdminSettingsPage() {
             ))}
           </div>
         </div>
+
+        {settings.customerAccounts !== "OFF" && (
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
+            <h2 className="text-sm font-semibold text-ink">Password login</h2>
+            <p className="text-xs text-muted">Email code login is always available when accounts are enabled.</p>
+            <div className="space-y-2">
+              {PASSWORD_MODES.map((m) => (
+                <label key={m.value} className="flex items-start gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="passwordLogin"
+                    checked={settings.passwordLogin === m.value}
+                    onChange={() => set("passwordLogin", m.value)}
+                    className="mt-0.5 accent-forest"
+                  />
+                  <span>
+                    <span className="font-medium text-ink">{m.label}</span>
+                    <span className="block text-xs text-muted">{m.help}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
           <h2 className="text-sm font-semibold text-ink">Abandoned cart reminders</h2>

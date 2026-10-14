@@ -5,15 +5,17 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mail, KeyRound } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { useAccount } from "@/store/account";
+import { useAccount, type PasswordLoginMode } from "@/store/account";
 import { Field, SubmitButton, TextLink, inputCn, postJson } from "./ui";
 
 type Tab = "password" | "code";
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, passwordMode }: { next: string; passwordMode?: PasswordLoginMode }) {
   const router = useRouter();
   const refresh = useAccount((s) => s.refresh);
-  const [tab, setTab] = useState<Tab>("password");
+  const storeMode = useAccount((s) => s.passwordLogin);
+  const showPassword = (passwordMode ?? storeMode) !== "OFF";
+  const [tab, setTab] = useState<Tab>(showPassword ? "password" : "code");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -64,6 +66,40 @@ export function LoginForm({ next }: { next: string }) {
     });
   };
 
+  const codeForm = codeSentTo ? (
+    <form onSubmit={onVerifyCode} className="space-y-4">
+      <p className="text-sm text-muted">
+        Enter the code we sent to <span className="font-medium text-ink">{codeSentTo}</span>.
+      </p>
+      <Field label="6-digit code">
+        <input
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          required
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+          className={cn(inputCn, "text-center font-mono text-lg tracking-[0.5em]")}
+        />
+      </Field>
+      <SubmitButton loading={loading} disabled={code.length !== 6}>Log in</SubmitButton>
+      <div className="flex justify-between text-sm">
+        <button type="button" onClick={() => setCodeSentTo(null)} className="text-muted hover:text-ink">Use another email</button>
+        <button type="button" onClick={() => onSendCode()} disabled={loading} className="font-medium text-forest hover:text-forest-dark">Resend code</button>
+      </div>
+    </form>
+  ) : (
+    <form onSubmit={onSendCode} className="space-y-4">
+      <p className="text-sm text-muted">No password needed. New here? This creates your account.</p>
+      <Field label="Email">
+        <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCn} />
+      </Field>
+      <SubmitButton loading={loading}>Send code</SubmitButton>
+    </form>
+  );
+
+  if (!showPassword) return <div>{codeForm}</div>;
+
   return (
     <div>
       <div className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-cream p-1 text-sm">
@@ -92,37 +128,7 @@ export function LoginForm({ next }: { next: string }) {
           </Field>
           <SubmitButton loading={loading}>Log in</SubmitButton>
         </form>
-      ) : codeSentTo ? (
-        <form onSubmit={onVerifyCode} className="space-y-4">
-          <p className="text-sm text-muted">
-            Enter the code we sent to <span className="font-medium text-ink">{codeSentTo}</span>.
-          </p>
-          <Field label="6-digit code">
-            <input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              className={cn(inputCn, "text-center font-mono text-lg tracking-[0.5em]")}
-            />
-          </Field>
-          <SubmitButton loading={loading} disabled={code.length !== 6}>Log in</SubmitButton>
-          <div className="flex justify-between text-sm">
-            <button type="button" onClick={() => setCodeSentTo(null)} className="text-muted hover:text-ink">Use another email</button>
-            <button type="button" onClick={() => onSendCode()} disabled={loading} className="font-medium text-forest hover:text-forest-dark">Resend code</button>
-          </div>
-        </form>
-      ) : (
-        <form onSubmit={onSendCode} className="space-y-4">
-          <p className="text-sm text-muted">No password needed. New here? This creates your account.</p>
-          <Field label="Email">
-            <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCn} />
-          </Field>
-          <SubmitButton loading={loading}>Send code</SubmitButton>
-        </form>
-      )}
+      ) : codeForm}
     </div>
   );
 }

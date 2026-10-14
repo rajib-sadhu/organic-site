@@ -25,6 +25,7 @@ const settingsUpdateSchema = z
     abandonedCartOn: z.boolean(),
     abandonedCartCouponId: z.number().int().positive().nullable(),
     customerAccounts: z.enum(["OFF", "OPTIONAL", "REQUIRED"]),
+    passwordLogin: z.enum(["OFF", "OPTIONAL", "REQUIRED"]),
   })
   .partial();
 

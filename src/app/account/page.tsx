@@ -9,7 +9,7 @@ import { PasswordForm } from "@/components/account/PasswordForm";
 import { prisma } from "@/lib/prisma";
 import { formatPaise } from "@/lib/money";
 import { cn } from "@/lib/cn";
-import { getAccountMode, getCustomerSession } from "@/server/lib/customer-auth";
+import { getAccountMode, getPasswordMode, getCustomerSession } from "@/server/lib/customer-auth";
 
 export const metadata: Metadata = { title: "My account", robots: { index: false } };
 
@@ -25,6 +25,7 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default async function AccountPage() {
   if ((await getAccountMode()) === "OFF") notFound();
+  const pwMode = await getPasswordMode();
   const session = await getCustomerSession();
   if (!session) redirect("/account/login?next=/account");
 
@@ -102,10 +103,12 @@ export default async function AccountPage() {
           />
         </section>
 
-        <section className="rounded-2xl border border-line bg-paper p-6">
-          <h2 className="mb-4 font-display text-2xl text-forest-dark">Password</h2>
-          <PasswordForm hasPassword={!!customer.passwordHash} />
-        </section>
+        {pwMode !== "OFF" && (
+          <section className="rounded-2xl border border-line bg-paper p-6">
+            <h2 className="mb-4 font-display text-2xl text-forest-dark">Password</h2>
+            <PasswordForm hasPassword={!!customer.passwordHash} />
+          </section>
+        )}
       </Container>
     </div>
   );

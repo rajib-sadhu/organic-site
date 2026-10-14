@@ -7,7 +7,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/server/services/settings";
-import type { CustomerAccountMode } from "@/generated/prisma/client";
+import type { CustomerAccountMode, PasswordLoginMode } from "@/generated/prisma/client";
 
 const COOKIE_NAME = "customer_token";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -80,6 +80,14 @@ export async function getCustomerSession(): Promise<CustomerSession | null> {
 
 export async function getAccountMode(): Promise<CustomerAccountMode> {
   return (await getSettings()).customerAccounts;
+}
+
+export async function getPasswordMode(): Promise<PasswordLoginMode> {
+  return (await getSettings()).passwordLogin;
+}
+
+export async function requirePasswordEnabled(): Promise<void> {
+  if ((await getPasswordMode()) === "OFF") throw new AccountError("Password login is not available.", 404);
 }
 
 export class AccountError extends Error {
