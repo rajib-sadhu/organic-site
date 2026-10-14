@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { ProductCard } from "@/components/product/ProductCard";
-import { getAllProducts, getCategories } from "@/server/repositories/catalog";
+import { getAllProducts, getCategories, type CatalogProduct } from "@/server/repositories/catalog";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { toItem } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
@@ -54,6 +56,11 @@ export default async function ProductsPage({
           </p>
         ) : (
           <div className="mt-10 grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-4">
+            <TrackEvent
+              key={category ?? "all"}
+              event="view_item_list"
+              params={listParams(category ? `category_${category}` : "shop", category ? `Shop: ${category}` : "Shop", products)}
+            />
             {products.map((p, i) => (
               <Reveal key={p.id} className="h-full" delay={(i % 4) * 0.05}>
                 <ProductCard product={p} />
@@ -64,6 +71,17 @@ export default async function ProductsPage({
       </Container>
     </div>
   );
+}
+
+function listParams(listId: string, listName: string, products: CatalogProduct[]) {
+  return {
+    item_list_id: listId,
+    item_list_name: listName,
+    items: products.map((p, index) => ({
+      ...toItem({ productSlug: p.slug, productName: p.name, pricePaise: p.variants[0]?.pricePaise ?? 0, category: p.category.name }),
+      index,
+    })),
+  };
 }
 
 function FilterPill({

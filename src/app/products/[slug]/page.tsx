@@ -16,6 +16,8 @@ import {
 } from "@/server/repositories/catalog";
 import { siteConfig } from "@/lib/site";
 import { JsonLd, absoluteUrl } from "@/components/ui/JsonLd";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { toItem } from "@/lib/analytics";
 
 export const revalidate = 300;
 
@@ -66,6 +68,19 @@ export default async function ProductDetailPage({
 
   const prices = product.variants.map((v) => v.pricePaise);
   const inStock = product.variants.some((v) => v.stock > 0);
+  // Same default the VariantSelector picks: first in-stock variant.
+  const defaultVariant = product.variants.find((v) => v.stock > 0) ?? product.variants[0];
+  const viewItem = {
+    currency: "INR",
+    value: (defaultVariant?.pricePaise ?? 0) / 100,
+    items: [toItem({
+      productSlug: product.slug,
+      productName: product.name,
+      variantLabel: defaultVariant?.label,
+      pricePaise: defaultVariant?.pricePaise ?? 0,
+      category: product.category.name,
+    })],
+  };
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -201,6 +216,7 @@ export default async function ProductDetailPage({
       </Container>
 
       <JsonLd data={jsonLd} />
+      <TrackEvent key={product.slug} event="view_item" params={viewItem} />
     </div>
   );
 }

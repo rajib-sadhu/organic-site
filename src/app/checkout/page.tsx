@@ -13,6 +13,8 @@ import { formatPaise } from "@/lib/money";
 import { INDIAN_STATES } from "@/lib/indian-states";
 import { checkoutSchema, type CheckoutInput } from "@/schema/checkout";
 import { fetchCart, type ServerCart } from "@/lib/cart-api";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { cartParams, rupees, track } from "@/lib/analytics";
 import { useCart } from "@/store/cart";
 
 declare global {
@@ -71,6 +73,18 @@ export default function CheckoutPage() {
   const baseTotalWithoutCod = (totals?.totalPaise ?? 0) - (totals?.codFeePaise ?? 0);
   const displayTotal = paymentMethod === "COD" ? baseTotalWithoutCod + codFee : baseTotalWithoutCod;
 
+  // GA dedupes purchase by transaction_id, so a retried payment can't double-count.
+  const trackPurchase = (orderNo: string, totalPaise: number, paymentType: string) => {
+    if (!cart) return;
+    track("purchase", {
+      ...cartParams(cart),
+      transaction_id: orderNo,
+      value: rupees(totalPaise),
+      shipping: rupees(cart.totals.shippingPaise),
+      payment_type: paymentType,
+    });
+  };
+
   const openRazorpay = (rzpConfig: Record<string, unknown>, orderNo: string) => {
     const options = {
       key: rzpConfig.keyId,
@@ -95,6 +109,7 @@ export default function CheckoutPage() {
             toast.error(json.error ?? "Payment verification failed.");
             return;
           }
+          trackPurchase(json.orderNo, Number(rzpConfig.amount), "Razorpay");
           clearLocal();
           router.push(`/order-confirmation?orderNo=${json.orderNo}&token=${json.trackingToken}&method=razorpay`);
         } catch {
@@ -152,6 +167,7 @@ export default function CheckoutPage() {
 
   const onSubmit = async (data: CheckoutInput) => {
     setSubmitting(true);
+    if (cart) track("add_payment_info", { ...cartParams(cart), payment_type: data.paymentMethod === "COD" ? "Cash on Delivery" : "Razorpay" });
     // A code only counts for the phone it was sent to.
     const codeForPhone = data.paymentMethod === "COD" && otpPhone === data.phone ? otpCode : undefined;
     try {
@@ -178,6 +194,7 @@ export default function CheckoutPage() {
         return;
       }
 
+      trackPurchase(json.orderNo, json.totalPaise ?? displayTotal, "Cash on Delivery");
       clearLocal();
       router.push(`/order-confirmation?orderNo=${json.orderNo}&token=${json.trackingToken}`);
     } catch {
@@ -222,6 +239,7 @@ export default function CheckoutPage() {
   return (
     <div className="py-12 sm:py-16">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRzpReady(true)} />
+      <TrackEvent event="begin_checkout" params={cartParams(cart)} />
       <Container>
         <Link href="/cart" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-forest">
           <ArrowLeft className="h-4 w-4" /> Back to cart
