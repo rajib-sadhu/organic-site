@@ -6,7 +6,7 @@ import { CouponForm } from "@/components/admin/CouponForm";
 
 export default function NewCouponPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Link href="/admin/coupons" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-forest">
         <ArrowLeft className="h-4 w-4" /> Back to coupons
       </Link>

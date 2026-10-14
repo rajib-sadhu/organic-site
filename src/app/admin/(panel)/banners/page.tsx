@@ -62,7 +62,6 @@ export default function AdminBannersPage() {
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch("/api/admin/banners");
       const json = await res.json();
@@ -168,21 +167,21 @@ export default function AdminBannersPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-24">
+      <div className="flex justify-center py-12">
         <Loader2 className="h-5 w-5 animate-spin text-muted" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">Banners</h1>
         {editingId === null && (
           <button
             type="button"
             onClick={openNew}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark"
           >
             <Plus className="h-4 w-4" /> Add banner
           </button>
@@ -191,7 +190,7 @@ export default function AdminBannersPage() {
 
       {/* Inline form */}
       {editingId !== null && (
-        <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-3 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">
               {editingId === 0 ? "New banner" : "Edit banner"}
@@ -201,7 +200,7 @@ export default function AdminBannersPage() {
             </button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Title" tip="Main headline shown on the banner overlay">
               <input
                 value={form.title}
@@ -276,7 +275,7 @@ export default function AdminBannersPage() {
             </div>
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Sort order" tip="Lower numbers appear first in the carousel">
               <input
                 type="number"
@@ -302,7 +301,7 @@ export default function AdminBannersPage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-50"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editingId === 0 ? "Create banner" : "Save changes"}
@@ -310,7 +309,7 @@ export default function AdminBannersPage() {
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-sand hover:text-ink"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted hover:bg-sand hover:text-ink"
             >
               Cancel
             </button>
@@ -320,11 +319,11 @@ export default function AdminBannersPage() {
 
       {/* Banner list */}
       {banners.length === 0 && editingId === null ? (
-        <div className="rounded-xl border border-line bg-paper px-6 py-12 text-center">
+        <div className="rounded-xl border border-line bg-paper px-4 py-8 text-center">
           <p className="text-muted">No banners yet. Add your first banner to get started.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {banners.map((b) => (
             <div
               key={b.id}
@@ -372,7 +371,7 @@ export default function AdminBannersPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-1 border-t border-line px-3 py-2">
+              <div className="flex items-center justify-end gap-1 border-t border-line px-3 py-1.5">
                 <button
                   type="button"
                   onClick={() => openEdit(b)}

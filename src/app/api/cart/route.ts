@@ -71,6 +71,9 @@ export async function POST(req: Request) {
     case "removeCoupon":
       cart = await cartRepo.setCoupon(cart!.id, null);
       break;
+    case "setEmail":
+      await cartRepo.setEmail(cart!.id, action.email);
+      return NextResponse.json({ success: true });
   }
 
   if (!cart) {

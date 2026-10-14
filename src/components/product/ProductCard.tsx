@@ -17,7 +17,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
     : null;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-paper transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-forest/10">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-paper transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-forest/10">
       <Link href={href} className="relative block">
         <ProductMedia
           image={thumbnail}
@@ -28,7 +28,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
         />
         {tags.length > 0 && (
           <div className="absolute left-2 top-2">
-            <ProductBadges tags={tags.slice(0, 2)} size="sm" />
+            <ProductBadges tags={tags.slice(0, 2)} size="sm" variant="solid" />
           </div>
         )}
         {discountPct && (
@@ -56,25 +56,26 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
         <span className="text-xs font-medium uppercase tracking-wider text-leaf">
           {product.category.name}
         </span>
-        <h3 className="mt-1 font-display text-lg leading-snug text-ink">
+        <h3 className="mt-1 min-h-[2lh] font-display text-lg leading-snug text-ink line-clamp-2">
           <Link href={href} className="transition-colors hover:text-forest">
             {product.name}
           </Link>
         </h3>
-        {product.tagline && (
-          <p className="mt-0.5 text-xs text-muted line-clamp-1">{product.tagline}</p>
-        )}
-        {product.ratingCount > 0 && (
-          <div className="mt-1 flex items-center gap-1 text-xs text-muted">
-            <div className="flex text-honey">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <span key={i} className={i < Math.round(product.ratingAvg) ? "text-honey" : "text-line"}>★</span>
-              ))}
-            </div>
-            <span>{product.ratingAvg.toFixed(1)}</span>
-            <span className="text-muted">({product.ratingCount})</span>
-          </div>
-        )}
+        {/* Tagline and rating rows always reserve their space so text lines up across cards. */}
+        <p className="mt-0.5 min-h-[1lh] text-xs text-muted line-clamp-1">{product.tagline}</p>
+        <div className="mt-1 flex min-h-4 items-center gap-1 text-xs text-muted">
+          {product.ratingCount > 0 && (
+            <>
+              <div className="flex text-honey">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className={i < Math.round(product.ratingAvg) ? "text-honey" : "text-line"}>★</span>
+                ))}
+              </div>
+              <span>{product.ratingAvg.toFixed(1)}</span>
+              <span className="text-muted">({product.ratingCount})</span>
+            </>
+          )}
+        </div>
         <div className="mt-auto flex items-center justify-between pt-4">
           <div>
             <Price variants={product.variants} className="text-base" />

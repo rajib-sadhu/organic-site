@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { prisma } from "@/lib/prisma";
@@ -39,10 +40,12 @@ export async function FeatureCards() {
           {cards.map((card, i) => {
             const inner = (
               <>
-                <img
+                <Image
                   src={card.image}
                   alt={card.title}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  fill
+                  sizes={`(max-width: 640px) 100vw, (max-width: 1024px) 50vw, ${Math.round(100 / cols)}vw`}
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5">

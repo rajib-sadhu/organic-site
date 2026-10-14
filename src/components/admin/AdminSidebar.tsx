@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ShoppingCart, Package, Ticket, Settings, Users, LogOut,
   Leaf, Star, FileText, Mail, Image, LayoutGrid, Megaphone, ChevronDown,
-  ShoppingBag, Boxes, Sparkles,
+  ShoppingBag, Boxes, Sparkles, Menu, X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { AdminSession } from "@/server/lib/admin-auth";
@@ -94,6 +94,29 @@ export function AdminSidebar({ session }: { session: AdminSession }) {
 
   const toggle = (label: string) => setOpen((o) => ({ ...o, [label]: !o[label] }));
 
+  // Small screens: the sidebar is a slide-out drawer.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Close the drawer on navigation (adjust state during render, not in an effect).
+  const [drawerPath, setDrawerPath] = useState(pathname);
+  if (drawerPath !== pathname) {
+    setDrawerPath(pathname);
+    setDrawerOpen(false);
+  }
+
+  // While open: Escape closes it, and the page behind doesn't scroll.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawerOpen(false);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [drawerOpen]);
+
   const handleLogout = async () => {
     await fetch("/api/admin/auth", { method: "DELETE" });
     router.push("/admin/login");
@@ -119,64 +142,109 @@ export function AdminSidebar({ session }: { session: AdminSession }) {
   };
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-paper">
-      <div className="flex items-center gap-2 border-b border-line px-4 py-5">
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-forest text-cream">
-          <Leaf className="h-4 w-4" />
-        </span>
-        <span className="font-display text-lg font-semibold text-forest-dark">Admin</span>
-      </div>
-
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
-        {groups.map((g, gi) => {
-          // Ungrouped items render flat.
-          if (!g.label) {
-            return g.items.map((item) => renderItem(item, false));
-          }
-
-          const GroupIcon = g.icon ?? LayoutGrid;
-          const expanded = open[g.label] ?? false;
-          const hasActive = g.items.some((i) => isItemActive(pathname, i.href));
-
-          return (
-            <div key={g.label} className={cn(gi > 0 && "pt-1")}>
-              <button
-                type="button"
-                onClick={() => toggle(g.label!)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  hasActive && !expanded ? "text-forest" : "text-ink hover:bg-sand",
-                )}
-              >
-                <GroupIcon className="h-4 w-4" />
-                <span className="flex-1 text-left">{g.label}</span>
-                <ChevronDown
-                  className={cn("h-3.5 w-3.5 text-muted transition-transform", expanded && "rotate-180")}
-                />
-              </button>
-              {expanded && (
-                <div className="mt-0.5 space-y-0.5">
-                  {g.items.map((item) => renderItem(item, true))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-line px-3 py-3">
-        <div className="mb-2 px-1">
-          <p className="text-xs font-medium text-ink">{session.name}</p>
-          <p className="text-xs text-muted">{session.roleName}</p>
-        </div>
+    <>
+      {/* Top bar with the menu button — small screens only */}
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-paper px-4 py-3 lg:hidden">
         <button
           type="button"
-          onClick={handleLogout}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-sand hover:text-clay"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={drawerOpen}
+          aria-controls="admin-sidebar"
+          className="grid h-9 w-9 place-items-center rounded-lg text-ink transition-colors hover:bg-sand"
         >
-          <LogOut className="h-4 w-4" /> Sign out
+          <Menu className="h-5 w-5" />
         </button>
-      </div>
-    </aside>
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-forest text-cream">
+          <Leaf className="h-3.5 w-3.5" />
+        </span>
+        <span className="font-display text-lg font-semibold text-forest-dark">Admin</span>
+      </header>
+
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-sm lg:hidden"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Fixed to the viewport height: the page scrolls, the sidebar doesn't.
+          Only the menu list scrolls if it's taller than the screen. */}
+      <aside
+        id="admin-sidebar"
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 flex-col border-r border-line bg-paper transition-[transform,visibility] duration-200",
+          "lg:visible lg:sticky lg:top-0 lg:z-auto lg:w-56 lg:shrink-0 lg:translate-x-0",
+          drawerOpen ? "visible translate-x-0" : "invisible -translate-x-full",
+        )}
+      >
+        <div className="flex items-center gap-2 border-b border-line px-4 py-5">
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-forest text-cream">
+            <Leaf className="h-4 w-4" />
+          </span>
+          <span className="flex-1 font-display text-lg font-semibold text-forest-dark">Admin</span>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close menu"
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-sand hover:text-ink lg:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-2 py-3">
+          {groups.map((g, gi) => {
+            // Ungrouped items render flat.
+            if (!g.label) {
+              return g.items.map((item) => renderItem(item, false));
+            }
+
+            const GroupIcon = g.icon ?? LayoutGrid;
+            const expanded = open[g.label] ?? false;
+            const hasActive = g.items.some((i) => isItemActive(pathname, i.href));
+
+            return (
+              <div key={g.label} className={cn(gi > 0 && "pt-1")}>
+                <button
+                  type="button"
+                  onClick={() => toggle(g.label!)}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    hasActive && !expanded ? "text-forest" : "text-ink hover:bg-sand",
+                  )}
+                >
+                  <GroupIcon className="h-4 w-4" />
+                  <span className="flex-1 text-left">{g.label}</span>
+                  <ChevronDown
+                    className={cn("h-3.5 w-3.5 text-muted transition-transform", expanded && "rotate-180")}
+                  />
+                </button>
+                {expanded && (
+                  <div className="mt-0.5 space-y-0.5">
+                    {g.items.map((item) => renderItem(item, true))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-line px-3 py-3">
+          <div className="mb-2 px-1">
+            <p className="text-xs font-medium text-ink">{session.name}</p>
+            <p className="text-xs text-muted">{session.roleName}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-sand hover:text-clay"
+          >
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

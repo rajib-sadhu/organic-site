@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookSignature } from "@/server/lib/razorpay";
-import { sendOrderConfirmation } from "@/server/services/email";
+import { queueOrderConfirmation } from "@/server/services/notify";
+import { markOrderPaid } from "@/server/services/order";
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
@@ -13,88 +14,43 @@ export async function POST(req: Request) {
 
   const event = JSON.parse(rawBody);
   const eventType: string = event.event;
+  const paymentEntity = event.payload?.payment?.entity;
+
+  if (eventType !== "payment.captured" && eventType !== "payment.failed") {
+    return NextResponse.json({ status: "ignored" });
+  }
+  if (!paymentEntity) {
+    return NextResponse.json({ status: "ignored" });
+  }
+
+  const rzpOrderId: string = paymentEntity.order_id;
+  const payment = await prisma.payment.findFirst({
+    where: { rzpOrderId },
+    include: { order: { select: { email: true } } },
+  });
+  if (!payment) {
+    console.warn(`[webhook] No payment record for rzpOrderId=${rzpOrderId}`);
+    return NextResponse.json({ status: "no_match" });
+  }
 
   if (eventType === "payment.captured") {
-    const paymentEntity = event.payload?.payment?.entity;
-    if (!paymentEntity) {
-      return NextResponse.json({ status: "ignored" });
-    }
-
-    const rzpOrderId: string = paymentEntity.order_id;
-    const rzpPaymentId: string = paymentEntity.id;
-
-    const payment = await prisma.payment.findFirst({
-      where: { rzpOrderId },
+    const result = await markOrderPaid({
+      paymentId: payment.id,
+      rzpPaymentId: String(paymentEntity.id),
+      rawWebhook: event,
     });
-
-    if (!payment) {
-      console.warn(`[webhook] No payment record for rzpOrderId=${rzpOrderId}`);
-      return NextResponse.json({ status: "no_match" });
+    if (result.status === "confirmed") {
+      await queueOrderConfirmation(payment.orderId, payment.order.email);
     }
-
-    // Idempotent: skip if already paid
-    if (payment.status === "PAID") {
-      return NextResponse.json({ status: "already_processed" });
-    }
-
-    await prisma.$transaction([
-      prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          rzpPaymentId,
-          status: "PAID",
-          rawWebhook: event,
-        },
-      }),
-      prisma.order.update({
-        where: { id: payment.orderId },
-        data: { paymentStatus: "PAID", status: "CONFIRMED" },
-      }),
-    ]);
-
-    sendOrderConfirmation(payment.orderId).catch(console.error);
-
-    return NextResponse.json({ status: "captured" });
+    return NextResponse.json({ status: result.status });
   }
 
-  if (eventType === "payment.failed") {
-    const paymentEntity = event.payload?.payment?.entity;
-    if (!paymentEntity) {
-      return NextResponse.json({ status: "ignored" });
-    }
-
-    const rzpOrderId: string = paymentEntity.order_id;
-
-    const payment = await prisma.payment.findFirst({
-      where: { rzpOrderId },
-    });
-
-    if (payment && payment.status !== "PAID") {
-      await prisma.$transaction([
-        prisma.payment.update({
-          where: { id: payment.id },
-          data: { status: "FAILED", rawWebhook: event },
-        }),
-        prisma.order.update({
-          where: { id: payment.orderId },
-          data: { paymentStatus: "FAILED", status: "CANCELLED" },
-        }),
-      ]);
-
-      // Release reserved stock
-      const orderItems = await prisma.orderItem.findMany({
-        where: { orderId: payment.orderId },
-      });
-      for (const item of orderItems) {
-        await prisma.productVariant.updateMany({
-          where: { sku: item.sku },
-          data: { stock: { increment: item.qty } },
-        });
-      }
-    }
-
-    return NextResponse.json({ status: "failed" });
-  }
-
-  return NextResponse.json({ status: "ignored" });
+  // payment.failed is sent for every failed attempt, and the customer can
+  // retry in the same checkout. Record it, but keep the order and its stock —
+  // the order is only cancelled when it expires unpaid (see payment-expiry).
+  await prisma.payment.updateMany({
+    where: { id: payment.id, status: { not: "PAID" } },
+    data: { status: "FAILED", rawWebhook: event },
+  });
+  return NextResponse.json({ status: "failed_attempt_recorded" });
 }

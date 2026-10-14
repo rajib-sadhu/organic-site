@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Upload, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -34,17 +34,13 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
   const set = <K extends keyof BlogFormData>(key: K, value: BlogFormData[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  useEffect(() => {
-    if (mode === "create" && form.title) {
-      const slug = form.title
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
-      set("slug", slug);
-    }
-  }, [form.title, mode]);
+  // In create mode the slug follows the title as it's typed.
+  const setTitle = (title: string) =>
+    setForm((f) => ({
+      ...f,
+      title,
+      slug: mode === "create" && title ? slugify(title) : f.slug,
+    }));
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -96,25 +92,25 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
+          <div className="grid gap-3 rounded-xl border border-line bg-paper p-3 sm:grid-cols-2">
             <Field label="Title" tip="Blog post title shown on the page and in search results">
-              <input value={form.title} onChange={(e) => set("title", e.target.value)} className="input" placeholder="10 Ways to Use Turmeric" />
+              <input value={form.title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="10 Ways to Use Turmeric" />
             </Field>
             <Field label="Slug" tip="URL-friendly identifier, auto-generated from title. e.g. /blog/10-ways-to-use-turmeric">
               <input value={form.slug} onChange={(e) => set("slug", e.target.value)} className="input" placeholder="10-ways-to-use-turmeric" />
             </Field>
-            <Field label="Excerpt" tip="Short summary shown on blog listing cards and in search results">
+            <Field className="col-span-full" label="Excerpt" tip="Short summary shown on blog listing cards and in search results">
               <textarea value={form.excerpt} onChange={(e) => set("excerpt", e.target.value)} rows={2} className="input" placeholder="Short summary..." />
             </Field>
-            <Field label="Body (HTML)" tip="Full post content in HTML. Use <p>, <h2>, <ul> etc.">
+            <Field className="col-span-full" label="Body (HTML)" tip="Full post content in HTML. Use <p>, <h2>, <ul> etc.">
               <textarea value={form.body} onChange={(e) => set("body", e.target.value)} rows={16} className="input font-mono text-xs" placeholder="<p>Write your post content...</p>" />
             </Field>
           </div>
 
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">SEO</h2>
             <Field label="Meta title" tip="Custom page title for search engines. Falls back to post title if blank">
               <input value={form.metaTitle} onChange={(e) => set("metaTitle", e.target.value)} className="input" />
@@ -125,8 +121,8 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
+        <div className="space-y-3">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">Publish</h2>
             <Field label="Status" tip="Draft = only visible to admins, Published = live on the website">
               <select value={form.status} onChange={(e) => set("status", e.target.value)} className="input">
@@ -182,7 +178,7 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-lg bg-forest py-2.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-60"
+            className="w-full rounded-lg bg-forest py-1.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-60"
           >
             {saving ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : mode === "edit" ? "Save changes" : "Create post"}
           </button>
@@ -192,9 +188,18 @@ export function BlogForm({ mode, postId, defaultValues }: Props) {
   );
 }
 
-function Field({ label, tip, children }: { label: string; tip?: string; children: React.ReactNode }) {
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function Field({ label, tip, className, children }: { label: string; tip?: string; className?: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div className={className}>
       <label className="mb-1 block text-xs font-medium text-muted">
         {label}
         {tip && <InfoTip text={tip} />}

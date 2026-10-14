@@ -20,7 +20,7 @@ export async function GET(
     where: { id: numId },
     include: {
       items: true,
-      invoice: { select: { invoiceNo: true, pdfPath: true } },
+      invoice: { select: { invoiceNo: true } },
     },
   });
 

@@ -28,11 +28,24 @@ export async function createRazorpayOrder(amountPaise: number, receipt: string) 
   return order;
 }
 
+export function isRazorpayConfigured(): boolean {
+  return Boolean(KEY_ID && KEY_SECRET);
+}
+
+/** The captured payment for a Razorpay order, if the customer actually paid. */
+export async function fetchCapturedPayment(rzpOrderId: string): Promise<{ id: string } | null> {
+  const { items } = await getRazorpay().orders.fetchPayments(rzpOrderId);
+  const captured = items.find((p) => p.status === "captured");
+  return captured ? { id: String(captured.id) } : null;
+}
+
 export function verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
   if (!KEY_SECRET) return false;
   const body = `${orderId}|${paymentId}`;
-  const expected = crypto.createHmac("sha256", KEY_SECRET).update(body).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const expected = Buffer.from(crypto.createHmac("sha256", KEY_SECRET).update(body).digest("hex"));
+  const actual = Buffer.from(signature);
+  // timingSafeEqual throws on a length mismatch; a malformed signature is simply invalid.
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
 export function verifyWebhookSignature(body: string, signature: string): boolean {

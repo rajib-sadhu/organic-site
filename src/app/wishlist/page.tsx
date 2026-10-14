@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Heart, ShoppingBag, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -8,7 +7,7 @@ import { useWishlist, type WishlistItem } from "@/store/wishlist";
 import { useCart } from "@/store/cart";
 import { ProductMedia } from "@/components/product/ProductMedia";
 import { formatPaise } from "@/lib/money";
-import { cn } from "@/lib/cn";
+import { useMounted } from "@/lib/use-mounted";
 
 function WishlistItemCard({ item }: { item: WishlistItem }) {
   const remove = useWishlist((s) => s.remove);
@@ -81,8 +80,7 @@ function WishlistItemCard({ item }: { item: WishlistItem }) {
 
 export default function WishlistPage() {
   const items = useWishlist((s) => s.items);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   if (!mounted) {
     return (

@@ -20,18 +20,16 @@ type Props = {
 };
 
 export function CouponsModal({ open, onClose, onApply, applyingCode }: Props) {
-  const [coupons, setCoupons] = useState<PublicCoupon[]>([]);
-  const [loading, setLoading] = useState(true);
+  // null until the first fetch lands; later opens refresh the list in the background.
+  const [coupons, setCoupons] = useState<PublicCoupon[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
     fetch("/api/coupons")
       .then((r) => r.json())
       .then((j) => setCoupons(j.coupons ?? []))
-      .catch(() => setCoupons([]))
-      .finally(() => setLoading(false));
+      .catch(() => setCoupons((c) => c ?? []));
   }, [open]);
 
   // Close on Escape.
@@ -94,7 +92,7 @@ export function CouponsModal({ open, onClose, onApply, applyingCode }: Props) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
-              {loading ? (
+              {coupons === null ? (
                 <div className="flex items-center justify-center gap-2 py-12 text-muted">
                   <Loader2 className="h-5 w-5 animate-spin" /> Loading…
                 </div>

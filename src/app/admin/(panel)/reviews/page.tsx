@@ -19,21 +19,29 @@ export default function AdminReviewsPage() {
   const router = useRouter();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Key of the query whose results are on screen; loading until it matches the current query.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [updating, setUpdating] = useState<number | null>(null);
 
   const statusFilter = searchParams.get("status") ?? "PENDING";
+  const loading = loadedKey !== statusFilter;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/admin/reviews?status=${statusFilter}`);
-    const json = await res.json();
-    setReviews(json.reviews ?? []);
-    setTotal(json.total ?? 0);
-    setLoading(false);
-  }, [statusFilter]);
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    fetch(`/api/admin/reviews?status=${statusFilter}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (isStale()) return;
+        setReviews(json.reviews ?? []);
+        setTotal(json.total ?? 0);
+        setLoadedKey(statusFilter);
+      }), [statusFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
   const moderate = async (id: number, status: string) => {
     setUpdating(id);
@@ -56,7 +64,7 @@ export default function AdminReviewsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-ink">Reviews</h1>
 
       <div className="flex gap-2">
@@ -78,14 +86,14 @@ export default function AdminReviewsPage() {
       <p className="text-sm text-muted">{total} review{total !== 1 ? "s" : ""}</p>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : reviews.length === 0 ? (
-        <p className="py-8 text-center text-muted">No {statusFilter.toLowerCase()} reviews.</p>
+        <p className="py-5 text-center text-muted">No {statusFilter.toLowerCase()} reviews.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {reviews.map((r) => (
-            <div key={r.id} className="rounded-xl border border-line bg-paper p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
+            <div key={r.id} className="rounded-xl border border-line bg-paper p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <div className="flex">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm<TCouponForm>({
     resolver: zodResolver(couponSchema),
@@ -41,7 +41,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
     },
   });
 
-  const couponType = watch("type");
+  const couponType = useWatch({ control, name: "type" });
 
   const onSubmit = async (data: TCouponForm) => {
     setSaving(true);
@@ -66,13 +66,13 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="max-w-xl space-y-6">
-      <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid gap-3 rounded-xl border border-line bg-paper p-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Code" tip="Unique coupon code customers enter at checkout (auto-uppercased)" error={errors.code?.message}>
           <input {...register("code")} className="input font-mono uppercase" placeholder="SUMMER20" />
         </Field>
 
-        <Field label="Description" tip="Internal note — only visible to admins, not shown to customers" error={errors.description?.message}>
+        <Field className="sm:col-span-2" label="Description" tip="Internal note — only visible to admins, not shown to customers" error={errors.description?.message}>
           <textarea {...register("description")} rows={2} className="input" placeholder="e.g. Summer sale — 20% off on all orders above ₹500" />
         </Field>
 
@@ -99,7 +99,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
           <input type="number" {...register("minOrderPaise", { valueAsNumber: true })} className="input" placeholder="0" />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="contents">
           <Field label="Max uses" tip="Total number of times this coupon can be used across all customers. Blank = unlimited">
             <input type="number" {...register("maxUses", { valueAsNumber: true })} className="input" placeholder="" />
           </Field>
@@ -108,7 +108,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
           </Field>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="contents">
           <Field label="Starts at" tip="Coupon becomes valid from this date. Blank = active immediately">
             <input type="datetime-local" {...register("startsAt")} className="input" />
           </Field>
@@ -117,7 +117,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
           </Field>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className="col-span-full flex items-center gap-2 text-sm">
           <input type="checkbox" {...register("isActive")} className="accent-forest" />
           Active
         </label>
@@ -126,7 +126,7 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
       <button
         type="submit"
         disabled={saving}
-        className="rounded-lg bg-forest px-6 py-2.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-60"
+        className="rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-60"
       >
         {saving ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : mode === "edit" ? "Save changes" : "Create coupon"}
       </button>
@@ -134,9 +134,9 @@ export function CouponForm({ mode, couponId, defaultValues }: Props) {
   );
 }
 
-function Field({ label, tip, error, children }: { label: string; tip?: string; error?: string; children: React.ReactNode }) {
+function Field({ label, tip, error, className, children }: { label: string; tip?: string; error?: string; className?: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div className={className}>
       <label className="mb-1 block text-xs font-medium text-muted">
         {label}
         {tip && <InfoTip text={tip} />}

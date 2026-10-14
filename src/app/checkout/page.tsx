@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, ShoppingBag, Truck, CreditCard, Banknote } from "lucide-react";
+import { ArrowLeft, Loader2, ShoppingBag, Truck, CreditCard, Banknote, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Container } from "@/components/ui/Container";
 import { formatPaise } from "@/lib/money";
@@ -21,47 +21,57 @@ declare global {
   }
 }
 
+const CHECKOUT_TIMEOUT_SECONDS = 15 * 60;
+
 export default function CheckoutPage() {
   const router = useRouter();
   const clearLocal = useCart((s) => s.clear);
   const [cart, setCart] = useState<ServerCart | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Set once an online order exists: the cart is already converted, so retries
+  // must reopen payment for this same order rather than place a new one.
+  const [pendingPayment, setPendingPayment] = useState<{ rzpConfig: Record<string, unknown>; orderNo: string; totalPaise: number } | null>(null);
   const [rzpReady, setRzpReady] = useState(false);
-
-  const loadCart = useCallback(async () => {
-    try {
-      const c = await fetchCart();
-      setCart(c);
-    } catch {
-      // no cart
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // COD-OTP: set once a code has been sent to this phone; the next submit carries the code.
+  const [otpPhone, setOtpPhone] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [sendingOtp, setSendingOtp] = useState(false);
 
   useEffect(() => {
-    loadCart();
-  }, [loadCart]);
+    let stale = false;
+    fetchCart()
+      .then((c) => {
+        if (!stale) setCart(c);
+      })
+      .catch(() => {
+        // no cart
+      })
+      .finally(() => {
+        if (!stale) setLoading(false);
+      });
+    return () => { stale = true; };
+  }, []);
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CheckoutInput>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: { paymentMethod: "COD" },
   });
 
-  const paymentMethod = watch("paymentMethod");
+  const paymentMethod = useWatch({ control, name: "paymentMethod" });
+  const phone = useWatch({ control, name: "phone" });
 
   const codFee = cart?.totals.codFeePaise ?? 0;
   const totals = cart?.totals;
   const baseTotalWithoutCod = (totals?.totalPaise ?? 0) - (totals?.codFeePaise ?? 0);
   const displayTotal = paymentMethod === "COD" ? baseTotalWithoutCod + codFee : baseTotalWithoutCod;
 
-  const openRazorpay = (rzpConfig: Record<string, unknown>, orderNo: string, trackingToken: string) => {
+  const openRazorpay = (rzpConfig: Record<string, unknown>, orderNo: string) => {
     const options = {
       key: rzpConfig.keyId,
       amount: rzpConfig.amount,
@@ -71,6 +81,8 @@ export default function CheckoutPage() {
       order_id: rzpConfig.orderId,
       prefill: { name: rzpConfig.name, email: rzpConfig.email, contact: rzpConfig.phone },
       theme: { color: "#24503a" },
+      // Close the popup before the server expires the unpaid order (payment-expiry, 30 min).
+      timeout: CHECKOUT_TIMEOUT_SECONDS,
       handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         try {
           const verifyRes = await fetch("/api/payment/razorpay/verify", {
@@ -91,7 +103,7 @@ export default function CheckoutPage() {
       },
       modal: {
         ondismiss: () => {
-          toast.info("Payment cancelled. Your order is saved — you can retry.");
+          toast.info("Payment not completed. Your order is held for a few minutes — tap “Complete payment” to finish.");
           setSubmitting(false);
         },
       },
@@ -101,23 +113,68 @@ export default function CheckoutPage() {
     rzp.open();
   };
 
+  // Save the email on the cart as soon as it's entered, so a reminder can be
+  // sent if the checkout is abandoned. Best effort — never blocks checkout.
+  const [capturedEmail, setCapturedEmail] = useState<string | null>(null);
+  const captureEmail = (value: string) => {
+    const email = value.trim().toLowerCase();
+    if (email === capturedEmail || !checkoutSchema.shape.email.safeParse(email).success) return;
+    setCapturedEmail(email);
+    fetch("/api/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "setEmail", email }),
+    }).catch(() => {});
+  };
+
+  const requestOtp = async (phone: string) => {
+    setSendingOtp(true);
+    try {
+      const res = await fetch("/api/checkout/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "Couldn't send the code. Please try again.");
+        return;
+      }
+      setOtpPhone(phone);
+      setOtpCode("");
+      toast.success(`We sent a 6-digit code to ${phone}.`);
+    } catch {
+      toast.error("Couldn't send the code. Please try again.");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
   const onSubmit = async (data: CheckoutInput) => {
     setSubmitting(true);
+    // A code only counts for the phone it was sent to.
+    const codeForPhone = data.paymentMethod === "COD" && otpPhone === data.phone ? otpCode : undefined;
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, otpCode: codeForPhone }),
       });
       const json = await res.json();
       if (!res.ok) {
+        if (json.otpRequired && !codeForPhone) {
+          setSubmitting(false);
+          await requestOtp(data.phone);
+          return;
+        }
         toast.error(json.error ?? "Checkout failed.");
         setSubmitting(false);
         return;
       }
 
       if (json.requiresPayment && json.razorpay) {
-        openRazorpay(json.razorpay, json.orderNo, json.trackingToken);
+        setPendingPayment({ rzpConfig: json.razorpay, orderNo: json.orderNo, totalPaise: json.totalPaise });
+        openRazorpay(json.razorpay, json.orderNo);
         return;
       }
 
@@ -160,6 +217,7 @@ export default function CheckoutPage() {
   }
 
   const hasRzpKey = !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const otpStepActive = paymentMethod === "COD" && otpPhone !== null && otpPhone === phone;
 
   return (
     <div className="py-12 sm:py-16">
@@ -177,7 +235,15 @@ export default function CheckoutPage() {
               <h2 className="font-display text-xl text-forest-dark">Contact</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <Field label="Email" error={errors.email?.message}>
-                  <input type="email" autoComplete="email" {...register("email")} className={inputCn} />
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    {...register("email", { onBlur: (e) => captureEmail(e.target.value) })}
+                    className={inputCn}
+                  />
+                  <span className="mt-1 block text-xs text-muted">
+                    We may email you a reminder about your cart. Unsubscribe anytime.
+                  </span>
                 </Field>
                 <Field label="Phone" error={errors.phone?.message}>
                   <input type="tel" autoComplete="tel" {...register("phone")} className={inputCn} />
@@ -310,19 +376,76 @@ export default function CheckoutPage() {
               {totals?.shippingPaise === 0 ? "Free shipping on this order!" : `Free shipping over ${formatPaise(totals?.freeShipThresholdPaise ?? 0)}`}
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting || (paymentMethod === "RAZORPAY" && !rzpReady)}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-medium text-cream transition-colors hover:bg-forest-dark disabled:opacity-60"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Processing…
-                </>
-              ) : (
-                `Place order · ${formatPaise(displayTotal)}`
-              )}
-            </button>
+            {otpStepActive && (
+              <div className="space-y-2 rounded-xl border border-forest/30 bg-leaf-soft p-4">
+                <p className="flex items-center gap-2 text-sm font-medium text-forest-dark">
+                  <ShieldCheck className="h-4 w-4" /> Verify your phone
+                </p>
+                <p className="text-xs text-muted">Enter the 6-digit code sent to {otpPhone}.</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  className={`${inputCn} text-center font-mono tracking-[0.5em]`}
+                  aria-label="Verification code"
+                />
+                <button
+                  type="button"
+                  onClick={() => otpPhone && requestOtp(otpPhone)}
+                  disabled={sendingOtp}
+                  className="text-xs font-medium text-forest underline-offset-2 hover:underline disabled:opacity-60"
+                >
+                  {sendingOtp ? "Sending…" : "Resend code"}
+                </button>
+              </div>
+            )}
+
+            {pendingPayment ? (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitting(true);
+                    openRazorpay(pendingPayment.rzpConfig, pendingPayment.orderNo);
+                  }}
+                  disabled={submitting || !rzpReady}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-medium text-cream transition-colors hover:bg-forest-dark disabled:opacity-60"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                    </>
+                  ) : (
+                    `Complete payment · ${formatPaise(pendingPayment.totalPaise)}`
+                  )}
+                </button>
+                <p className="text-center text-xs text-muted">Order {pendingPayment.orderNo} is reserved for you.</p>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  sendingOtp ||
+                  (paymentMethod === "RAZORPAY" && !rzpReady) ||
+                  (otpStepActive && otpCode.length !== 6)
+                }
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-medium text-cream transition-colors hover:bg-forest-dark disabled:opacity-60"
+              >
+                {submitting || sendingOtp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> {sendingOtp ? "Sending code…" : "Processing…"}
+                  </>
+                ) : otpStepActive ? (
+                  `Verify & place order · ${formatPaise(displayTotal)}`
+                ) : (
+                  `Place order · ${formatPaise(displayTotal)}`
+                )}
+              </button>
+            )}
           </aside>
         </form>
       </Container>

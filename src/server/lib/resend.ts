@@ -10,7 +10,3 @@ export function getResend(): Resend {
   }
   return instance;
 }
-
-export function getFromEmail(): string {
-  return process.env.EMAIL_FROM ?? "Verdant <orders@verdant.example>";
-}

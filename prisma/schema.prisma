@@ -30,50 +30,50 @@ model Category {
 }
 
 model Product {
-  id          Int              @id @default(autoincrement())
+  id               Int              @id @default(autoincrement())
   slug             String           @unique
   name             String
   tagline          String?
   shortDescription String?          @db.Text
   description      String           @db.Text
-  category    Category         @relation(fields: [categoryId], references: [id])
-  categoryId  Int
-  images      ProductImage[]
-  variants    ProductVariant[]
-  reviews     Review[]
-  isActive    Boolean          @default(true)
-  isFeatured  Boolean          @default(false)
-  ratingAvg   Float            @default(0)
-  ratingCount Int              @default(0)
+  category         Category         @relation(fields: [categoryId], references: [id])
+  categoryId       Int
+  images           ProductImage[]
+  variants         ProductVariant[]
+  reviews          Review[]
+  isActive         Boolean          @default(true)
+  isFeatured       Boolean          @default(false)
+  ratingAvg        Float            @default(0)
+  ratingCount      Int              @default(0)
   // Tags & badges (JSON array of strings: ["BESTSELLER","NEW_ARRIVAL"])
-  tags        Json             @default("[]")
+  tags             Json             @default("[]")
   // Rich detail fields
-  highlights  Json             @default("[]")  // ["Low GI","Certified Glyphosate-Free"]
-  benefits    Json             @default("[]")  // ["Aids digestion","Rich in fiber"]
-  howToUse    String?          @db.Text
-  ingredients String?          @db.Text
-  nutritionInfo Json?                          // { "Calories": "340 kcal", "Protein": "12g", ... }
-  shelfLife   String?
-  storage     String?
+  highlights       Json             @default("[]") // ["Low GI","Certified Glyphosate-Free"]
+  benefits         Json             @default("[]") // ["Aids digestion","Rich in fiber"]
+  howToUse         String?          @db.Text
+  ingredients      String?          @db.Text
+  nutritionInfo    Json? // { "Calories": "340 kcal", "Protein": "12g", ... }
+  shelfLife        String?
+  storage          String?
   // SEO
-  metaTitle       String?
-  metaDescription String?      @db.Text
-  metaKeywords    String?      @db.Text
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  metaTitle        String?
+  metaDescription  String?          @db.Text
+  metaKeywords     String?          @db.Text
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([categoryId])
   @@index([isActive, isFeatured])
 }
 
 model ProductImage {
-  id          Int      @id @default(autoincrement())
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id          Int     @id @default(autoincrement())
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId   Int
   url         String
   alt         String?
-  sortOrder   Int      @default(0)
-  isThumbnail Boolean  @default(false)
+  sortOrder   Int     @default(0)
+  isThumbnail Boolean @default(false)
 
   @@index([productId])
 }
@@ -85,13 +85,14 @@ model ProductVariant {
   label       String // "500g", "10 kg"
   sku         String      @unique
   pricePaise  Int // sale/tax-inclusive price
-  mrpPaise    Int?        // MRP for strikethrough; null = no discount shown
-  weightGrams Int?        // weight in grams for per-unit pricing (10kg = 10000)
+  mrpPaise    Int? // MRP for strikethrough; null = no discount shown
+  weightGrams Int? // weight in grams for per-unit pricing (10kg = 10000)
   stock       Int         @default(0)
   isActive    Boolean     @default(true)
   cartItems   CartItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
 
   @@index([productId])
 }
@@ -105,11 +106,18 @@ model Cart {
   items     CartItem[]
   coupon    Coupon?    @relation(fields: [couponId], references: [id])
   couponId  Int?
-  email     String?    // captured early for abandoned-cart recovery
+  email     String? // captured early for abandoned-cart recovery
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
+  // Abandoned-cart recovery (ARCHITECTURE §6.10)
+  recoveryToken  String?   @unique // random; set when the email is captured; restores this cart from the reminder link
+  activityAt     DateTime  @default(now()) // last item/coupon change — reminders are timed from here
+  remindersSent  Int       @default(0)
+  lastReminderAt DateTime?
+
   @@index([couponId])
+  @@index([remindersSent, activityAt])
 }
 
 model CartItem {
@@ -129,23 +137,24 @@ model CartItem {
 // ---------------------------------------------------------------------------
 
 model Coupon {
-  id            Int        @id @default(autoincrement())
-  code          String     @unique
-  description   String?    @db.Text
-  type          CouponType
-  valuePaise    Int? // for FLAT
-  percent       Int? // for PERCENT (0-100)
-  minOrderPaise Int        @default(0)
-  maxUses       Int?
-  usedCount     Int        @default(0)
-  perEmailLimit Int?
-  startsAt      DateTime?
-  expiresAt     DateTime?
-  isActive      Boolean    @default(true)
-  carts         Cart[]
-  orders        Order[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id                    Int        @id @default(autoincrement())
+  code                  String     @unique
+  description           String?    @db.Text
+  type                  CouponType
+  valuePaise            Int? // for FLAT
+  percent               Int? // for PERCENT (0-100)
+  minOrderPaise         Int        @default(0)
+  maxUses               Int?
+  usedCount             Int        @default(0)
+  perEmailLimit         Int?
+  startsAt              DateTime?
+  expiresAt             DateTime?
+  isActive              Boolean    @default(true)
+  carts                 Cart[]
+  orders                Order[]
+  abandonedCartSettings Setting[]  @relation("AbandonedCartCoupon")
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 }
 
 // ---------------------------------------------------------------------------
@@ -158,8 +167,8 @@ model Order {
   trackingToken String      @unique @default(cuid()) // magic-link order status page
   status        OrderStatus @default(PENDING)
 
-  customer    Customer?   @relation(fields: [customerId], references: [id])
-  customerId  Int?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId Int?
 
   // guest customer snapshot
   email       String
@@ -197,9 +206,12 @@ model Order {
 }
 
 model OrderItem {
-  id           Int    @id @default(autoincrement())
-  order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id           Int             @id @default(autoincrement())
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId      Int
+  // live link for stock release on cancel (null if the variant is later deleted)
+  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  variantId    Int?
   // snapshot of product/variant at purchase time
   productName  String
   variantLabel String
@@ -209,6 +221,7 @@ model OrderItem {
   linePaise    Int
 
   @@index([orderId])
+  @@index([variantId])
 }
 
 model Payment {
@@ -301,18 +314,60 @@ model RolePermission {
 // ---------------------------------------------------------------------------
 
 model Setting {
-  id                Int      @id @default(1)
-  storeName         String   @default("Organic Foods")
-  storeEmail        String?
-  flatShippingPaise Int      @default(0)
-  freeShipOverPaise Int? // null = no free-ship threshold
-  codFeePaise       Int      @default(0)
-  codOtpRequired    Boolean  @default(false) // admin toggle (see ARCHITECTURE 6.5/7.1)
-  gstEnabled        Boolean  @default(false)
-  announcementText  String?  // promo bar copy; null = bar hidden
-  announcementHref  String?
-  featureCardGrid   Int      @default(3) // home page feature cards grid: 2, 3, or 4 columns
-  updatedAt         DateTime @updatedAt
+  id                    Int      @id @default(1)
+  storeName             String   @default("Organic Foods")
+  storeEmail            String?
+  flatShippingPaise     Int      @default(0)
+  freeShipOverPaise     Int? // null = no free-ship threshold
+  codFeePaise           Int      @default(0)
+  codOtpRequired        Boolean  @default(false) // admin toggle (see ARCHITECTURE 6.5/7.1)
+  gstEnabled            Boolean  @default(false)
+  announcementText      String? // promo bar copy; null = bar hidden
+  announcementHref      String?
+  featureCardGrid       Int      @default(3) // home page feature cards grid: 2, 3, or 4 columns
+  abandonedCartOn       Boolean  @default(false) // send cart reminders (§6.10)
+  abandonedCartCoupon   Coupon?  @relation("AbandonedCartCoupon", fields: [abandonedCartCouponId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  abandonedCartCouponId Int? // optional coupon offered in the last reminder
+  updatedAt             DateTime @updatedAt
+}
+
+// Emails that asked to stop a kind of message (e.g. cart reminders).
+model EmailOptOut {
+  id        Int      @id @default(autoincrement())
+  email     String
+  scope     String // "cart_reminder"
+  createdAt DateTime @default(now())
+
+  @@unique([email, scope])
+}
+
+// ---------------------------------------------------------------------------
+// Notification outbox — every email/SMS is persisted here, then dispatched
+// (ARCHITECTURE §6.14). HIGH = sent inline; NORMAL/LOW = worker.
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id                      Int           @id @default(autoincrement())
+  channel                 NotifChannel
+  priority                NotifPriority @default(NORMAL)
+  status                  NotifStatus   @default(PENDING) // PENDING -> SENDING -> SENT | FAILED
+  toAddress               String // email address or phone number
+  subject                 String? // email only
+  body                    String        @db.Text // secrets redacted in place once SENT
+  template                String // e.g. "order.confirmation", "cod.otp"
+  orderId                 Int?
+  attachInvoiceForOrderId Int? // worker regenerates + attaches the invoice PDF at send time
+  dedupeKey               String?       @unique // re-enqueue with the same key is a no-op
+  attempts                Int           @default(0)
+  maxAttempts             Int           @default(10) // with backoff, spans ~1–2 days
+  lastError               String?       @db.Text
+  scheduledFor            DateTime      @default(now()) // worker skips until now >= scheduledFor
+  sentAt                  DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([channel, status])
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +394,24 @@ enum PaymentStatus {
 enum PaymentMethod {
   RAZORPAY
   COD
+}
+
+enum NotifChannel {
+  EMAIL
+  SMS
+}
+
+enum NotifPriority {
+  HIGH
+  NORMAL
+  LOW
+}
+
+enum NotifStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
 }
 
 enum CouponType {

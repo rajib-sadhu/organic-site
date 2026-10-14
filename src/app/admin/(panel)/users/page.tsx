@@ -20,35 +20,79 @@ export default function AdminUsersPage() {
   const [passwordModal, setPasswordModal] = useState<AdminUser | null>(null);
   const [editModal, setEditModal] = useState<AdminUser | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [uRes, rRes, authRes] = await Promise.all([
+  // isStale lets the effect drop a response superseded by a newer query or unmount.
+  const load = useCallback((isStale: () => boolean = () => false) =>
+    Promise.all([
       fetch("/api/admin/users").then((r) => r.json()),
       fetch("/api/admin/roles").then((r) => r.json()),
       fetch("/api/admin/auth").then((r) => r.json()),
-    ]);
-    setUsers(uRes.users ?? []);
-    setRoles(rRes.roles ?? []);
-    if (authRes.user) setCurrentUser({ id: authRes.user.id, isSystem: authRes.user.isSystem, permissions: authRes.user.permissions ?? [] });
-    setLoading(false);
-  }, []);
+    ]).then(([uRes, rRes, authRes]) => {
+      if (isStale()) return;
+      setUsers(uRes.users ?? []);
+      setRoles(rRes.roles ?? []);
+      if (authRes.user) setCurrentUser({ id: authRes.user.id, isSystem: authRes.user.isSystem, permissions: authRes.user.permissions ?? [] });
+      setLoading(false);
+    }), []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let stale = false;
+    load(() => stale);
+    return () => { stale = true; };
+  }, [load]);
 
-  if (loading) return <div className="flex justify-center py-24"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>;
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>;
 
   const canManageUsers = currentUser?.isSystem || currentUser?.permissions.includes("users.manage");
 
+  // Row actions, shared by the desktop table and the phone cards.
+  const renderUserActions = (u: AdminUser, className: string) => {
+    const isSelf = currentUser?.id === u.id;
+    const isTargetOwner = u.role.isSystem;
+    const canChangePassword = isSelf || (canManageUsers && (!isTargetOwner || currentUser?.isSystem));
+    const canEdit = canManageUsers && (!isTargetOwner || currentUser?.isSystem);
+    const canDelete = canManageUsers && !isTargetOwner;
+
+    return (
+      <div className={`${className} items-center gap-1`}>
+        {canEdit && (
+          <button type="button" title="Edit user" onClick={() => setEditModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {canChangePassword && (
+          <button type="button" title="Change password" onClick={() => setPasswordModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
+            <KeyRound className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {canDelete && (
+          <button
+            type="button"
+            title="Delete user"
+            onClick={async () => {
+              if (!confirm(`Delete user "${u.name}"?`)) return;
+              const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+              if (res.ok) { toast.success("User deleted."); load(); }
+              else { const j = await res.json(); toast.error(j.error ?? "Failed."); }
+            }}
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <h1 className="text-2xl font-semibold text-ink">Users & Roles</h1>
 
       {/* Users section */}
-      <section className="space-y-4">
+      <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink">Admin users</h2>
           {canManageUsers && (
-            <button type="button" onClick={() => setShowUserForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark">
+            <button type="button" onClick={() => setShowUserForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark">
               <UserPlus className="h-4 w-4" /> Add user
             </button>
           )}
@@ -56,86 +100,59 @@ export default function AdminUsersPage() {
 
         {showUserForm && <CreateUserForm roles={roles} onDone={() => { setShowUserForm(false); load(); }} />}
 
-        <div className="overflow-x-auto rounded-xl border border-line bg-paper">
+        <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
+          {users.map((u) => (
+            <li key={u.id} className="flex items-center gap-3 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-ink">
+                  {u.name}
+                  {currentUser?.id === u.id && <span className="ml-1.5 text-xs text-muted">(you)</span>}
+                </p>
+                <p className="truncate text-xs text-muted">{u.email}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <RoleLabel role={u.role} />
+                  <ActiveBadge active={u.isActive} />
+                </div>
+              </div>
+              {renderUserActions(u, "flex shrink-0")}
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2 text-right">Actions</th>
+                <th className="px-3 py-1.5">Name</th>
+                <th className="px-3 py-1.5">Email</th>
+                <th className="px-3 py-1.5">Role</th>
+                <th className="px-3 py-1.5">Status</th>
+                <th className="px-3 py-1.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
-                const isSelf = currentUser?.id === u.id;
-                const isTargetOwner = u.role.isSystem;
-                const canChangePassword = isSelf || (canManageUsers && (!isTargetOwner || currentUser?.isSystem));
-                const canEdit = canManageUsers && (!isTargetOwner || currentUser?.isSystem);
-                const canDelete = canManageUsers && !isTargetOwner;
-
-                return (
-                  <tr key={u.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                    <td className="px-4 py-2.5 font-medium text-ink">
-                      {u.name}
-                      {isSelf && <span className="ml-1.5 text-xs text-muted">(you)</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted">{u.email}</td>
-                    <td className="px-4 py-2.5">
-                      <span className="inline-flex items-center gap-1 text-xs">
-                        {u.role.isSystem && <Shield className="h-3 w-3 text-honey" />}
-                        {u.role.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${u.isActive ? "bg-leaf-soft text-forest" : "bg-sand text-muted"}`}>
-                        {u.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        {canEdit && (
-                          <button type="button" title="Edit user" onClick={() => setEditModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {canChangePassword && (
-                          <button type="button" title="Change password" onClick={() => setPasswordModal(u)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-sand hover:text-ink">
-                            <KeyRound className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            type="button"
-                            title="Delete user"
-                            onClick={async () => {
-                              if (!confirm(`Delete user "${u.name}"?`)) return;
-                              const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
-                              if (res.ok) { toast.success("User deleted."); load(); }
-                              else { const j = await res.json(); toast.error(j.error ?? "Failed."); }
-                            }}
-                            className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-clay/10 hover:text-clay"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-line last:border-0 hover:bg-cream/50">
+                  <td className="px-3 py-1.5 font-medium text-ink">
+                    {u.name}
+                    {currentUser?.id === u.id && <span className="ml-1.5 text-xs text-muted">(you)</span>}
+                  </td>
+                  <td className="px-3 py-1.5 text-muted">{u.email}</td>
+                  <td className="px-3 py-1.5"><RoleLabel role={u.role} /></td>
+                  <td className="px-3 py-1.5"><ActiveBadge active={u.isActive} /></td>
+                  <td className="px-3 py-1.5 text-right">{renderUserActions(u, "inline-flex")}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </section>
 
       {/* Roles section */}
-      <section className="space-y-4">
+      <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink">Roles</h2>
           {canManageUsers && (
-            <button type="button" onClick={() => setShowRoleForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-sand">
+            <button type="button" onClick={() => setShowRoleForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink hover:bg-sand">
               <Plus className="h-4 w-4" /> Add role
             </button>
           )}
@@ -146,7 +163,7 @@ export default function AdminUsersPage() {
         <div className="space-y-2">
           {roles.map((r) => (
             <div key={r.id} className="rounded-xl border border-line bg-paper">
-              <button type="button" className="flex w-full items-center justify-between px-5 py-3 text-left" onClick={() => setExpandedRole(expandedRole === r.id ? null : r.id)}>
+              <button type="button" className="flex w-full items-center justify-between px-3 py-2 text-left" onClick={() => setExpandedRole(expandedRole === r.id ? null : r.id)}>
                 <div>
                   <span className="font-medium text-ink">{r.name}</span>
                   {r.isSystem && <span className="ml-2 text-xs text-honey-dark">(system)</span>}
@@ -155,7 +172,7 @@ export default function AdminUsersPage() {
                 {expandedRole === r.id ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
               </button>
               {expandedRole === r.id && (
-                <div className="border-t border-line px-5 py-3">
+                <div className="border-t border-line px-3 py-2">
                   {r.isSystem ? (
                     <p className="text-sm text-muted">System role — has all permissions.</p>
                   ) : (
@@ -224,9 +241,9 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl border border-line bg-paper p-6 shadow-xl">
+      <div className="relative w-full max-w-md rounded-2xl border border-line bg-paper p-4 shadow-xl">
         <button type="button" onClick={onClose} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-sand hover:text-ink" aria-label="Close">
           <X className="h-4 w-4" />
         </button>
@@ -271,7 +288,7 @@ function PasswordModal({ userId, isSelf, userName, onClose }: { userId: number; 
       <h3 className="mb-4 text-lg font-semibold text-ink">
         {isSelf ? "Change your password" : `Change password for ${userName}`}
       </h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {isSelf && (
           <div>
             <label className="mb-1 block text-xs font-medium text-muted">Current password</label>
@@ -298,10 +315,10 @@ function PasswordModal({ userId, isSelf, userName, onClose }: { userId: number; 
           {mismatch && <p className="mt-0.5 text-xs text-clay">Passwords don&apos;t match</p>}
         </div>
         <div className="flex gap-2 pt-1">
-          <button type="submit" disabled={saving || mismatch} className="rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream disabled:opacity-60">
+          <button type="submit" disabled={saving || mismatch} className="rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream disabled:opacity-60">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update password"}
           </button>
-          <button type="button" onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-muted hover:bg-sand">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:bg-sand">Cancel</button>
         </div>
       </form>
     </Modal>
@@ -346,7 +363,7 @@ function EditUserModal({ user, roles, currentIsOwner, onClose, onSaved }: {
   return (
     <Modal onClose={onClose}>
       <h3 className="mb-4 text-lg font-semibold text-ink">Edit user</h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-muted">Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} className="input" required />
@@ -358,7 +375,7 @@ function EditUserModal({ user, roles, currentIsOwner, onClose, onSaved }: {
         <div>
           <label className="mb-1 block text-xs font-medium text-muted">Role</label>
           {isTargetOwner ? (
-            <div className="flex items-center gap-1.5 rounded-lg border border-line bg-sand/50 px-3 py-2.5 text-sm text-muted">
+            <div className="flex items-center gap-1.5 rounded-lg border border-line bg-sand/50 px-3 py-1.5 text-sm text-muted">
               <Shield className="h-3.5 w-3.5 text-honey" /> {user.role.name}
               <span className="text-xs">(cannot be changed)</span>
             </div>
@@ -375,10 +392,10 @@ function EditUserModal({ user, roles, currentIsOwner, onClose, onSaved }: {
           <span className="text-muted">Active</span>
         </label>
         <div className="flex gap-2 pt-1">
-          <button type="submit" disabled={saving} className="rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream disabled:opacity-60">
+          <button type="submit" disabled={saving} className="rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream disabled:opacity-60">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
           </button>
-          <button type="button" onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-muted hover:bg-sand">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:bg-sand">Cancel</button>
         </div>
       </form>
     </Modal>
@@ -410,7 +427,7 @@ function CreateUserForm({ roles, onDone }: { roles: Role[]; onDone: () => void }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-5 max-w-md space-y-3">
+    <form onSubmit={handleSubmit} className="grid gap-3 rounded-xl border border-line bg-paper p-3 sm:grid-cols-2 lg:grid-cols-4">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted">Name</label>
         <input value={name} onChange={(e) => setName(e.target.value)} className="input" required />
@@ -436,11 +453,11 @@ function CreateUserForm({ roles, onDone }: { roles: Role[]; onDone: () => void }
           ))}
         </select>
       </div>
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream disabled:opacity-60">
+      <div className="col-span-full flex gap-2">
+        <button type="submit" disabled={saving} className="rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream disabled:opacity-60">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create user"}
         </button>
-        <button type="button" onClick={onDone} className="rounded-lg border border-line px-4 py-2 text-sm text-muted hover:bg-sand">Cancel</button>
+        <button type="button" onClick={onDone} className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:bg-sand">Cancel</button>
       </div>
     </form>
   );
@@ -478,14 +495,14 @@ function RoleForm({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-5 space-y-4">
-      <div className="max-w-xs">
+    <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-3 space-y-3">
+      <div className="sm:max-w-sm">
         <label className="mb-1 block text-xs font-medium text-muted">Role name</label>
         <input value={name} onChange={(e) => setName(e.target.value)} className="input" required placeholder="Order Manager" />
       </div>
       <div className="space-y-3">
         <p className="text-xs font-medium text-muted">Permissions</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           {Object.entries(groups).map(([group, perms]) => (
             <div key={group}>
               <p className="mb-1 text-xs font-semibold text-ink">{group}</p>
@@ -500,11 +517,28 @@ function RoleForm({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream disabled:opacity-60">
+        <button type="submit" disabled={saving} className="rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream disabled:opacity-60">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create role"}
         </button>
-        <button type="button" onClick={onDone} className="rounded-lg border border-line px-4 py-2 text-sm text-muted hover:bg-sand">Cancel</button>
+        <button type="button" onClick={onDone} className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:bg-sand">Cancel</button>
       </div>
     </form>
+  );
+}
+
+function RoleLabel({ role }: { role: { name: string; isSystem: boolean } }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs">
+      {role.isSystem && <Shield className="h-3 w-3 text-honey" />}
+      {role.name}
+    </span>
+  );
+}
+
+function ActiveBadge({ active }: { active: boolean }) {
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${active ? "bg-leaf-soft text-forest" : "bg-sand text-muted"}`}>
+      {active ? "Active" : "Inactive"}
+    </span>
   );
 }

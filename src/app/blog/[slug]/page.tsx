@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
@@ -74,9 +75,13 @@ export default async function BlogPostPage({
 
         <article className="mx-auto mt-8 max-w-2xl">
           {post.coverImage && (
-            <img
+            <Image
               src={post.coverImage}
               alt={post.title}
+              width={1344}
+              height={756}
+              sizes="(max-width: 704px) 100vw, 672px"
+              fetchPriority="high"
               className="mb-8 aspect-[16/9] w-full rounded-2xl object-cover"
             />
           )}

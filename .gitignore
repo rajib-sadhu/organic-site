@@ -49,3 +49,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Invoice PDFs contain customer PII — private storage only, never committed or served statically
+/storage/
+/public/invoices/

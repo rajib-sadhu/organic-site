@@ -30,8 +30,8 @@ export default function EditProductPage(props: { params: Promise<{ id: string }>
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="flex justify-center py-24"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>;
-  if (!product) return <p className="py-12 text-muted">Product not found.</p>;
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>;
+  if (!product) return <p className="py-8 text-muted">Product not found.</p>;
 
   const defaults: TProductForm = {
     name: product.name,
@@ -66,7 +66,7 @@ export default function EditProductPage(props: { params: Promise<{ id: string }>
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Link href="/admin/products" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-forest">
         <ArrowLeft className="h-4 w-4" /> Back to products
       </Link>

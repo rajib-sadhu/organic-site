@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import { useWishlist, type WishlistItem } from "@/store/wishlist";
 import { cn } from "@/lib/cn";
+import { useMounted } from "@/lib/use-mounted";
 
 export function WishlistButton({
   item,
@@ -17,8 +17,7 @@ export function WishlistButton({
 }) {
   const toggle = useWishlist((s) => s.toggle);
   const items = useWishlist((s) => s.items);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const active = mounted && items.some((i) => i.variantId === item.variantId);
 
