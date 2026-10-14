@@ -1222,12 +1222,31 @@ async function seedCoupons() {
   console.log("  ✓ Coupons seeded.");
 }
 
+async function seedPromoMessages() {
+  // PromoMessage has no natural unique key, so match on text: create if missing,
+  // never touch an existing row (admins may have edited or deactivated it).
+  const messages = [
+    { text: "🚚 Free delivery on orders above ₹300", link: null },
+    { text: "🌿 100% certified organic · Farm-fresh, no chemicals", link: "/products" },
+    { text: "💵 Cash on Delivery available across India", link: null },
+    { text: "📖 New on the blog: healthy recipes & organic living tips", link: "/blog" },
+  ];
+  for (const [i, m] of messages.entries()) {
+    const existing = await prisma.promoMessage.findFirst({ where: { text: m.text } });
+    if (!existing) {
+      await prisma.promoMessage.create({ data: { ...m, sortOrder: i, isActive: true } });
+    }
+  }
+  console.log("  ✓ Promo messages seeded.");
+}
+
 async function main() {
   console.log("Seeding database...");
   await seedRbac();
   await seedSettings();
   await seedCatalog();
   await seedCoupons();
+  await seedPromoMessages();
   console.log("Done.");
 }
 
