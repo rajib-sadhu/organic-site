@@ -38,19 +38,19 @@ export default function AdminBlogPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">Blog</h1>
         <Link
           href="/admin/blog/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark"
         >
           <Plus className="h-4 w-4" /> New post
         </Link>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : (
         <>
           <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
@@ -66,36 +66,36 @@ export default function AdminBlogPage() {
                 <RowActions href={`/admin/blog/${p.id}`} label={p.title} onDelete={() => handleDelete(p.id, p.title)} className="flex-col" />
               </li>
             ))}
-            {posts.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No posts yet.</li>}
+            {posts.length === 0 && <li className="px-3 py-5 text-center text-sm text-muted">No posts yet.</li>}
           </ul>
           <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
-                  <th className="px-4 py-2">Title</th>
-                  <th className="px-4 py-2">Status</th>
-                  <th className="px-4 py-2">Published</th>
-                  <th className="px-4 py-2 text-right">Actions</th>
+                  <th className="px-3 py-1.5">Title</th>
+                  <th className="px-3 py-1.5">Status</th>
+                  <th className="px-3 py-1.5">Published</th>
+                  <th className="px-3 py-1.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {posts.map((p) => (
                   <tr key={p.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-1.5">
                       <Link href={`/admin/blog/${p.id}`} className="font-medium text-ink hover:text-forest-dark">{p.title}</Link>
                       <p className="text-xs text-muted">{p.slug}</p>
                     </td>
-                    <td className="px-4 py-2.5"><PostStatus status={p.status} /></td>
-                    <td className="px-4 py-2.5 text-xs text-muted">
+                    <td className="px-3 py-1.5"><PostStatus status={p.status} /></td>
+                    <td className="px-3 py-1.5 text-xs text-muted">
                       {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString("en-IN") : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-3 py-1.5 text-right">
                       <RowActions href={`/admin/blog/${p.id}`} label={p.title} onDelete={() => handleDelete(p.id, p.title)} className="justify-end" />
                     </td>
                   </tr>
                 ))}
                 {posts.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">No posts yet.</td></tr>
+                  <tr><td colSpan={4} className="px-3 py-5 text-center text-muted">No posts yet.</td></tr>
                 )}
               </tbody>
             </table>

@@ -135,28 +135,28 @@ export default function AdminPromoMessagesPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-24">
+      <div className="flex justify-center py-12">
         <Loader2 className="h-5 w-5 animate-spin text-muted" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">Promo strip</h1>
         {editingId === null && (
           <button
             type="button"
             onClick={openNew}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark"
           >
             <Plus className="h-4 w-4" /> Add message
           </button>
         )}
       </div>
 
-      <p className="rounded-lg border border-line bg-paper px-4 py-3 text-sm text-muted">
+      <p className="rounded-lg border border-line bg-paper px-3 py-2 text-sm text-muted">
         These messages rotate one at a time in the thin bar above the navbar, together with all{" "}
         <span className="font-medium text-ink">active coupons</span> (their code and description are
         shown automatically — you don&apos;t need to add them here).
@@ -164,7 +164,7 @@ export default function AdminPromoMessagesPage() {
 
       {/* Inline form */}
       {editingId !== null && (
-        <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-3 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">
               {editingId === 0 ? "New message" : "Edit message"}
@@ -183,7 +183,7 @@ export default function AdminPromoMessagesPage() {
             />
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Link" tip="Where the message goes when clicked, e.g. /products. Blank = not clickable">
               <input
                 value={form.link}
@@ -218,7 +218,7 @@ export default function AdminPromoMessagesPage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-50"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editingId === 0 ? "Create message" : "Save changes"}
@@ -226,7 +226,7 @@ export default function AdminPromoMessagesPage() {
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-sand hover:text-ink"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted hover:bg-sand hover:text-ink"
             >
               Cancel
             </button>
@@ -236,7 +236,7 @@ export default function AdminPromoMessagesPage() {
 
       {/* Message list */}
       {messages.length === 0 && editingId === null ? (
-        <div className="rounded-xl border border-line bg-paper px-6 py-12 text-center">
+        <div className="rounded-xl border border-line bg-paper px-4 py-8 text-center">
           <p className="text-muted">
             No custom messages yet. Active coupons still show in the strip automatically.
           </p>
@@ -246,7 +246,7 @@ export default function AdminPromoMessagesPage() {
           {messages.map((m, i) => (
             <div
               key={m.id}
-              className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-line" : ""}`}
+              className={`flex items-center gap-3 px-3 py-2 ${i > 0 ? "border-t border-line" : ""}`}
             >
               <span className="flex items-center gap-0.5 text-xs text-muted">
                 <GripVertical className="h-3.5 w-3.5" />

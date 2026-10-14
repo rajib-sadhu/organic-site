@@ -57,7 +57,7 @@ export default function AdminOrdersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">Orders</h1>
         <span className="text-sm text-muted">{total} total</span>
@@ -83,7 +83,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : (
         <>
           <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
@@ -105,38 +105,38 @@ export default function AdminOrdersPage() {
                 </Link>
               </li>
             ))}
-            {orders.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No orders found.</li>}
+            {orders.length === 0 && <li className="px-3 py-5 text-center text-sm text-muted">No orders found.</li>}
           </ul>
           <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
-                  <th className="px-4 py-2">Order</th>
-                  <th className="px-4 py-2">Customer</th>
-                  <th className="px-4 py-2">Status</th>
-                  <th className="px-4 py-2">Payment</th>
-                  <th className="px-4 py-2 text-right">Total</th>
-                  <th className="px-4 py-2">Date</th>
+                  <th className="px-3 py-1.5">Order</th>
+                  <th className="px-3 py-1.5">Customer</th>
+                  <th className="px-3 py-1.5">Status</th>
+                  <th className="px-3 py-1.5">Payment</th>
+                  <th className="px-3 py-1.5 text-right">Total</th>
+                  <th className="px-3 py-1.5">Date</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map((o) => (
                   <tr key={o.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-1.5">
                       <Link href={`/admin/orders/${o.id}`} className="font-medium text-forest-dark hover:underline">{o.orderNo}</Link>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-1.5">
                       <div className="text-ink">{o.shipName}</div>
                       <div className="text-xs text-muted">{o.email}</div>
                     </td>
-                    <td className="px-4 py-2.5"><StatusBadge status={o.status} /></td>
-                    <td className="px-4 py-2.5 text-muted">{o.paymentMethod === "COD" ? "COD" : "Online"} · {o.paymentStatus}</td>
-                    <td className="px-4 py-2.5 text-right font-medium">{formatPaise(o.totalPaise)}</td>
-                    <td className="px-4 py-2.5 text-muted">{new Date(o.createdAt).toLocaleDateString("en-IN")}</td>
+                    <td className="px-3 py-1.5"><StatusBadge status={o.status} /></td>
+                    <td className="px-3 py-1.5 text-muted">{o.paymentMethod === "COD" ? "COD" : "Online"} · {o.paymentStatus}</td>
+                    <td className="px-3 py-1.5 text-right font-medium">{formatPaise(o.totalPaise)}</td>
+                    <td className="px-3 py-1.5 text-muted">{new Date(o.createdAt).toLocaleDateString("en-IN")}</td>
                   </tr>
                 ))}
                 {orders.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">No orders found.</td></tr>
+                  <tr><td colSpan={6} className="px-3 py-5 text-center text-muted">No orders found.</td></tr>
                 )}
               </tbody>
             </table>

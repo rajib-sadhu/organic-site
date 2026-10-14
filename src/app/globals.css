@@ -84,6 +84,11 @@ h3,
   }
 }
 
+/* Admin panel is denser than the storefront (which also uses .input) */
+[data-admin-panel] .input {
+  padding: 0.375rem 0.625rem;
+}
+
 /* Blog post prose */
 .prose-organic {
   line-height: 1.8;

@@ -6,7 +6,7 @@ import { ProductForm } from "@/components/admin/ProductForm";
 
 export default function NewProductPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Link href="/admin/products" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-forest">
         <ArrowLeft className="h-4 w-4" /> Back to products
       </Link>

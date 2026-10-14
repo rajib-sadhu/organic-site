@@ -25,22 +25,22 @@ export function AdminDashboard() {
   }, []);
 
   if (loading) {
-    return <div className="flex items-center justify-center py-24 text-muted"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+    return <div className="flex items-center justify-center py-12 text-muted"><Loader2 className="h-5 w-5 animate-spin" /></div>;
   }
-  if (!stats) return <p className="py-12 text-muted">Failed to load dashboard.</p>;
+  if (!stats) return <p className="py-8 text-muted">Failed to load dashboard.</p>;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
 
       {/* Revenue cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         {([
           { label: "Today", data: stats.revenue.today },
           { label: "Last 7 days", data: stats.revenue.week },
           { label: "Last 30 days", data: stats.revenue.month },
         ] as const).map((card) => (
-          <div key={card.label} className="rounded-xl border border-line bg-paper p-5">
+          <div key={card.label} className="rounded-xl border border-line bg-paper p-3">
             <div className="flex items-center gap-2 text-sm text-muted">
               <DollarSign className="h-4 w-4" /> {card.label}
             </div>
@@ -51,8 +51,8 @@ export function AdminDashboard() {
       </div>
 
       {/* Orders by status + method split */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-line bg-paper p-5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-line bg-paper p-3">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink"><ShoppingCart className="h-4 w-4" /> Orders by status</h2>
           <div className="space-y-2">
             {stats.ordersByStatus.map((s) => (
@@ -64,7 +64,7 @@ export function AdminDashboard() {
             {stats.ordersByStatus.length === 0 && <p className="text-sm text-muted">No orders yet.</p>}
           </div>
         </div>
-        <div className="rounded-xl border border-line bg-paper p-5">
+        <div className="rounded-xl border border-line bg-paper p-3">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink"><TrendingUp className="h-4 w-4" /> Payment methods</h2>
           <div className="space-y-2">
             {stats.methodSplit.map((m) => (
@@ -79,8 +79,8 @@ export function AdminDashboard() {
       </div>
 
       {/* Top products + Low stock */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-line bg-paper p-5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-line bg-paper p-3">
           <h2 className="mb-3 text-sm font-semibold text-ink">Top products</h2>
           <div className="space-y-2">
             {stats.topProducts.map((p, i) => (
@@ -92,7 +92,7 @@ export function AdminDashboard() {
             {stats.topProducts.length === 0 && <p className="text-sm text-muted">No sales yet.</p>}
           </div>
         </div>
-        <div className="rounded-xl border border-line bg-paper p-5">
+        <div className="rounded-xl border border-line bg-paper p-3">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink"><AlertTriangle className="h-4 w-4 text-honey" /> Low stock alerts</h2>
           <div className="space-y-2">
             {stats.lowStock.map((v, i) => (
@@ -108,12 +108,12 @@ export function AdminDashboard() {
 
       {/* Recent orders */}
       <div className="rounded-xl border border-line bg-paper">
-        <div className="border-b border-line px-5 py-3">
+        <div className="border-b border-line px-3 py-2">
           <h2 className="text-sm font-semibold text-ink">Recent orders</h2>
         </div>
         <ul className="divide-y divide-line md:hidden">
           {stats.recentOrders.map((o) => (
-            <li key={o.id} className="px-5 py-3">
+            <li key={o.id} className="px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-medium text-forest-dark">{o.orderNo}</span>
                 <span className="font-medium text-ink">{formatPaise(o.totalPaise)}</span>
@@ -126,33 +126,33 @@ export function AdminDashboard() {
               </div>
             </li>
           ))}
-          {stats.recentOrders.length === 0 && <li className="px-5 py-6 text-center text-sm text-muted">No orders yet.</li>}
+          {stats.recentOrders.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted">No orders yet.</li>}
         </ul>
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="px-5 py-2">Order</th>
-                <th className="px-5 py-2">Customer</th>
-                <th className="px-5 py-2">Status</th>
-                <th className="px-5 py-2">Method</th>
-                <th className="px-5 py-2 text-right">Total</th>
-                <th className="px-5 py-2">Date</th>
+                <th className="px-3 py-1.5">Order</th>
+                <th className="px-3 py-1.5">Customer</th>
+                <th className="px-3 py-1.5">Status</th>
+                <th className="px-3 py-1.5">Method</th>
+                <th className="px-3 py-1.5 text-right">Total</th>
+                <th className="px-3 py-1.5">Date</th>
               </tr>
             </thead>
             <tbody>
               {stats.recentOrders.map((o) => (
                 <tr key={o.id} className="border-b border-line last:border-0">
-                  <td className="px-5 py-2.5 font-medium text-forest-dark">{o.orderNo}</td>
-                  <td className="px-5 py-2.5 text-ink">{o.shipName}</td>
-                  <td className="px-5 py-2.5"><StatusBadge status={o.status} /></td>
-                  <td className="px-5 py-2.5 text-muted">{o.paymentMethod === "COD" ? "COD" : "Online"}</td>
-                  <td className="px-5 py-2.5 text-right font-medium">{formatPaise(o.totalPaise)}</td>
-                  <td className="px-5 py-2.5 text-muted">{new Date(o.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</td>
+                  <td className="px-3 py-1.5 font-medium text-forest-dark">{o.orderNo}</td>
+                  <td className="px-3 py-1.5 text-ink">{o.shipName}</td>
+                  <td className="px-3 py-1.5"><StatusBadge status={o.status} /></td>
+                  <td className="px-3 py-1.5 text-muted">{o.paymentMethod === "COD" ? "COD" : "Online"}</td>
+                  <td className="px-3 py-1.5 text-right font-medium">{formatPaise(o.totalPaise)}</td>
+                  <td className="px-3 py-1.5 text-muted">{new Date(o.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</td>
                 </tr>
               ))}
               {stats.recentOrders.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-6 text-center text-muted">No orders yet.</td></tr>
+                <tr><td colSpan={6} className="px-3 py-4 text-center text-muted">No orders yet.</td></tr>
               )}
             </tbody>
           </table>

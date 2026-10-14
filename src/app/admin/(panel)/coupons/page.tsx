@@ -46,19 +46,19 @@ export default function AdminCouponsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">Coupons</h1>
         <Link
           href="/admin/coupons/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark"
         >
           <Plus className="h-4 w-4" /> Add coupon
         </Link>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : (
         <>
           <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
@@ -80,39 +80,39 @@ export default function AdminCouponsPage() {
                 <RowActions href={`/admin/coupons/${c.id}`} label={c.code} onDelete={() => handleDelete(c.id, c.code)} className="flex-col" />
               </li>
             ))}
-            {coupons.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No coupons found.</li>}
+            {coupons.length === 0 && <li className="px-3 py-5 text-center text-sm text-muted">No coupons found.</li>}
           </ul>
           <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
-                  <th className="px-4 py-2">Code</th>
-                  <th className="px-4 py-2">Description</th>
-                  <th className="px-4 py-2">Type</th>
-                  <th className="px-4 py-2">Min order</th>
-                  <th className="px-4 py-2">Usage</th>
-                  <th className="px-4 py-2">Status</th>
-                  <th className="px-4 py-2">Expires</th>
-                  <th className="px-4 py-2 text-right">Actions</th>
+                  <th className="px-3 py-1.5">Code</th>
+                  <th className="px-3 py-1.5">Description</th>
+                  <th className="px-3 py-1.5">Type</th>
+                  <th className="px-3 py-1.5">Min order</th>
+                  <th className="px-3 py-1.5">Usage</th>
+                  <th className="px-3 py-1.5">Status</th>
+                  <th className="px-3 py-1.5">Expires</th>
+                  <th className="px-3 py-1.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {coupons.map((c) => (
                   <tr key={c.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                    <td className="px-4 py-2.5 font-mono font-medium text-forest-dark">{c.code}</td>
-                    <td className="px-4 py-2.5 text-muted text-xs max-w-48 truncate">{c.description || "—"}</td>
-                    <td className="px-4 py-2.5">{typeLabel(c)}</td>
-                    <td className="px-4 py-2.5 text-muted">{c.minOrderPaise > 0 ? formatPaise(c.minOrderPaise) : "—"}</td>
-                    <td className="px-4 py-2.5 text-muted">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
-                    <td className="px-4 py-2.5"><ActiveBadge active={c.isActive} /></td>
-                    <td className="px-4 py-2.5 text-muted text-xs">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("en-IN") : "—"}</td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-3 py-1.5 font-mono font-medium text-forest-dark">{c.code}</td>
+                    <td className="px-3 py-1.5 text-muted text-xs max-w-48 truncate">{c.description || "—"}</td>
+                    <td className="px-3 py-1.5">{typeLabel(c)}</td>
+                    <td className="px-3 py-1.5 text-muted">{c.minOrderPaise > 0 ? formatPaise(c.minOrderPaise) : "—"}</td>
+                    <td className="px-3 py-1.5 text-muted">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
+                    <td className="px-3 py-1.5"><ActiveBadge active={c.isActive} /></td>
+                    <td className="px-3 py-1.5 text-muted text-xs">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("en-IN") : "—"}</td>
+                    <td className="px-3 py-1.5 text-right">
                       <RowActions href={`/admin/coupons/${c.id}`} label={c.code} onDelete={() => handleDelete(c.id, c.code)} className="justify-end" />
                     </td>
                   </tr>
                 ))}
                 {coupons.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-muted">No coupons found.</td></tr>
+                  <tr><td colSpan={8} className="px-3 py-5 text-center text-muted">No coupons found.</td></tr>
                 )}
               </tbody>
             </table>

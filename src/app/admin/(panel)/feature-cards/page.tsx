@@ -195,21 +195,21 @@ export default function AdminFeatureCardsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-24">
+      <div className="flex justify-center py-12">
         <Loader2 className="h-5 w-5 animate-spin text-muted" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">Feature cards</h1>
         {editingId === null && (
           <button
             type="button"
             onClick={openNew}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark"
           >
             <Plus className="h-4 w-4" /> Add card
           </button>
@@ -217,7 +217,7 @@ export default function AdminFeatureCardsPage() {
       </div>
 
       {/* Grid columns setting */}
-      <div className="flex items-center gap-3 rounded-xl border border-line bg-paper px-5 py-4">
+      <div className="flex items-center gap-3 rounded-xl border border-line bg-paper px-3 py-2.5">
         <span className="text-sm font-medium text-ink">
           Grid columns
           <InfoTip text="How many cards show per row on desktop. On mobile they always stack to a single column." />
@@ -242,7 +242,7 @@ export default function AdminFeatureCardsPage() {
 
       {/* Inline form */}
       {editingId !== null && (
-        <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-paper p-3 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">
               {editingId === 0 ? "New card" : "Edit card"}
@@ -252,7 +252,7 @@ export default function AdminFeatureCardsPage() {
             </button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Title *" tip="Headline shown over the card image">
               <input
                 value={form.title}
@@ -343,7 +343,7 @@ export default function AdminFeatureCardsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-50"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editingId === 0 ? "Create card" : "Save changes"}
@@ -351,7 +351,7 @@ export default function AdminFeatureCardsPage() {
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-sand hover:text-ink"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted hover:bg-sand hover:text-ink"
             >
               Cancel
             </button>
@@ -361,11 +361,11 @@ export default function AdminFeatureCardsPage() {
 
       {/* Card list */}
       {cards.length === 0 && editingId === null ? (
-        <div className="rounded-xl border border-line bg-paper px-6 py-12 text-center">
+        <div className="rounded-xl border border-line bg-paper px-4 py-8 text-center">
           <p className="text-muted">No feature cards yet. Add your first card to get started.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (
             <div
               key={c.id}
@@ -402,7 +402,7 @@ export default function AdminFeatureCardsPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-1 border-t border-line px-3 py-2">
+              <div className="flex items-center justify-end gap-1 border-t border-line px-3 py-1.5">
                 <button
                   type="button"
                   onClick={() => openEdit(c)}

@@ -82,12 +82,12 @@ export default function AdminProductsPage() {
     variants.reduce((sum, v) => sum + v.stock, 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-ink">Products</h1>
         <Link
           href="/admin/products/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-cream hover:bg-forest-dark"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark"
         >
           <Plus className="h-4 w-4" /> Add product
         </Link>
@@ -99,9 +99,9 @@ export default function AdminProductsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search products..."
-          className="w-64 rounded-lg border border-line bg-paper px-3 py-2 text-sm outline-none focus:border-forest"
+          className="w-64 rounded-lg border border-line bg-paper px-3 py-1.5 text-sm outline-none focus:border-forest"
         />
-        <button type="submit" className="rounded-lg bg-sand px-4 py-2 text-sm font-medium text-ink hover:bg-line">
+        <button type="submit" className="rounded-lg bg-sand px-3 py-1.5 text-sm font-medium text-ink hover:bg-line">
           Search
         </button>
       </form>
@@ -109,7 +109,7 @@ export default function AdminProductsPage() {
       <p className="text-sm text-muted">{total} product{total !== 1 ? "s" : ""}</p>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : (
         <>
           <ul className="divide-y divide-line rounded-xl border border-line bg-paper md:hidden">
@@ -132,24 +132,24 @@ export default function AdminProductsPage() {
                 </li>
               );
             })}
-            {products.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No products found.</li>}
+            {products.length === 0 && <li className="px-3 py-5 text-center text-sm text-muted">No products found.</li>}
           </ul>
           <div className="hidden overflow-x-auto rounded-xl border border-line bg-paper md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
-                  <th className="px-4 py-2">Product</th>
-                  <th className="px-4 py-2">Category</th>
-                  <th className="px-4 py-2">Price</th>
-                  <th className="px-4 py-2">Stock</th>
-                  <th className="px-4 py-2">Status</th>
-                  <th className="px-4 py-2 text-right">Actions</th>
+                  <th className="px-3 py-1.5">Product</th>
+                  <th className="px-3 py-1.5">Category</th>
+                  <th className="px-3 py-1.5">Price</th>
+                  <th className="px-3 py-1.5">Stock</th>
+                  <th className="px-3 py-1.5">Status</th>
+                  <th className="px-3 py-1.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map((p) => (
                   <tr key={p.id} className="border-b border-line last:border-0 hover:bg-cream/50">
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-1.5">
                       <div className="flex items-center gap-3">
                         <Thumb product={p} />
                         <div>
@@ -158,21 +158,21 @@ export default function AdminProductsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-muted">{p.category.name}</td>
-                    <td className="px-4 py-2.5 font-medium">{minPrice(p.variants) != null ? formatPaise(minPrice(p.variants)!) : "—"}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-1.5 text-muted">{p.category.name}</td>
+                    <td className="px-3 py-1.5 font-medium">{minPrice(p.variants) != null ? formatPaise(minPrice(p.variants)!) : "—"}</td>
+                    <td className="px-3 py-1.5">
                       <span className={cn("font-medium", stockTone(totalStock(p.variants)))}>
                         {totalStock(p.variants)}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5"><StatusLabel product={p} /></td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-3 py-1.5"><StatusLabel product={p} /></td>
+                    <td className="px-3 py-1.5 text-right">
                       <RowActions product={p} onDelete={handleDelete} className="justify-end" />
                     </td>
                   </tr>
                 ))}
                 {products.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">No products found.</td></tr>
+                  <tr><td colSpan={6} className="px-3 py-5 text-center text-muted">No products found.</td></tr>
                 )}
               </tbody>
             </table>

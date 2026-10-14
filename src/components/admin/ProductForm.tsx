@@ -57,6 +57,11 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
     fetch("/api/admin/categories").then((r) => r.json()).then((j) => setCategories(j.categories ?? []));
   }, []);
 
+  // The <select> mounts before its options arrive, so the browser drops the default value. Re-apply it.
+  useEffect(() => {
+    if (categories.length) setValue("categoryId", getValues("categoryId"));
+  }, [categories, setValue, getValues]);
+
   const name = useWatch({ control, name: "name" });
   useEffect(() => {
     if (mode === "create" && name) {
@@ -142,12 +147,12 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
           {/* Basic info */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-ink">Basic info</h2>
+          <div className="grid gap-3 rounded-xl border border-line bg-paper p-3 sm:grid-cols-2">
+            <h2 className="col-span-full text-sm font-semibold text-ink">Basic info</h2>
             <Field label="Name" tip="Product name displayed on the store and in search results" error={errors.name?.message}>
               <input {...register("name")} className="input" placeholder="Organic Turmeric Powder" />
             </Field>
@@ -157,22 +162,22 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
             <Field label="Slug" tip="URL-friendly identifier, auto-generated from name. e.g. /products/organic-turmeric-powder" error={errors.slug?.message}>
               <input {...register("slug")} className="input" placeholder="organic-turmeric-powder" />
             </Field>
-            <Field label="Short description" tip="Brief summary shown on product listing cards">
-              <textarea {...register("shortDescription")} rows={2} className="input" placeholder="Brief summary shown on listing pages" />
-            </Field>
-            <Field label="Full description" tip="Detailed HTML description shown on the product detail page" error={errors.description?.message}>
-              <textarea {...register("description")} rows={4} className="input" />
-            </Field>
             <Field label="Category" tip="Product category for filtering and navigation" error={errors.categoryId?.message}>
               <select {...register("categoryId", { valueAsNumber: true })} className="input">
                 <option value={0}>Select category</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Field>
+            <Field className="col-span-full" label="Short description" tip="Brief summary shown on product listing cards">
+              <textarea {...register("shortDescription")} rows={2} className="input" placeholder="Brief summary shown on listing pages" />
+            </Field>
+            <Field className="col-span-full" label="Full description" tip="Detailed HTML description shown on the product detail page" error={errors.description?.message}>
+              <textarea {...register("description")} rows={4} className="input" />
+            </Field>
           </div>
 
           {/* Tags */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-3">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">Tags & badges</h2>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_TAGS.map((tag) => (
@@ -191,7 +196,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
           </div>
 
           {/* Highlights */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-3">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">Highlights</h2>
             <p className="text-xs text-muted">Short taglines like &quot;Low GI&quot;, &quot;Certified Glyphosate-Free&quot;</p>
             <div className="flex flex-wrap gap-1.5">
@@ -211,7 +216,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
           </div>
 
           {/* Benefits */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-3">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">Benefits</h2>
             <div className="space-y-1">
               {benefits.map((b, i) => (
@@ -229,18 +234,18 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
           </div>
 
           {/* Details */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-ink">Product details</h2>
+          <div className="grid gap-3 rounded-xl border border-line bg-paper p-3 sm:grid-cols-2">
+            <h2 className="col-span-full text-sm font-semibold text-ink">Product details</h2>
             <Field label="Ingredients" tip="List of ingredients, shown on the product page"><textarea {...register("ingredients")} rows={2} className="input" placeholder="100% organic emmer wheat" /></Field>
             <Field label="How to use" tip="Usage instructions or serving suggestions"><textarea {...register("howToUse")} rows={2} className="input" placeholder="Use like regular wheat flour..." /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="contents">
               <Field label="Shelf life" tip="Product shelf life, e.g. '6 months from packaging'"><input {...register("shelfLife")} className="input" placeholder="6 months" /></Field>
               <Field label="Storage" tip="Storage instructions, e.g. 'Store in a cool, dry place'"><input {...register("storage")} className="input" placeholder="Cool, dry place" /></Field>
             </div>
           </div>
 
           {/* Nutrition table */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-3">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">Nutritional information</h2>
             {nutritionInfo && Object.entries(nutritionInfo).length > 0 && (
               <table className="w-full text-sm">
@@ -265,7 +270,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
           </div>
 
           {/* Variants */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-ink">Variants</h2>
               <button type="button" onClick={() => append({ label: "", sku: "", pricePaise: 0, mrpPaise: null, weightGrams: null, stock: 0, isActive: true })} className="inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-forest-dark">
@@ -275,36 +280,34 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
             {errors.variants?.root?.message && <p className="text-xs text-clay">{errors.variants.root.message}</p>}
             <div className="space-y-3">
               {fields.map((field, idx) => (
-                <div key={field.id} className="rounded-lg border border-line bg-cream/30 p-3 space-y-2">
-                  <div className="flex flex-wrap items-start gap-2">
-                    <div className="flex-1 min-w-[100px]">
+                <div key={field.id} className="rounded-lg border border-line bg-cream/30 p-3">
+                  <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-3 xl:grid-cols-[1fr_2fr_6rem_6rem_6rem_4.5rem_auto]">
+                    <div>
                       <label className="text-xs text-muted">Label</label>
                       <input {...register(`variants.${idx}.label`)} className="input text-sm" placeholder="10 kg" />
                     </div>
-                    <div className="flex-1 min-w-[100px]">
+                    <div>
                       <label className="text-xs text-muted">SKU</label>
                       <input {...register(`variants.${idx}.sku`)} className="input text-sm" placeholder="KWA-10" />
                     </div>
-                    <div className="w-28">
-                      <label className="text-xs text-muted">Sale price (paise)</label>
+                    <div>
+                      <label className="text-xs text-muted whitespace-nowrap">Price (paise)</label>
                       <input type="number" {...register(`variants.${idx}.pricePaise`, { valueAsNumber: true })} className="input text-sm" />
                       {variantValues?.[idx]?.pricePaise > 0 && <span className="text-xs text-muted">{formatPaise(Number(variantValues[idx].pricePaise))}</span>}
                     </div>
-                    <div className="w-28">
+                    <div>
                       <label className="text-xs text-muted">MRP (paise)</label>
                       <input type="number" {...register(`variants.${idx}.mrpPaise`, { setValueAs: (v: string) => v === "" ? null : Number(v) })} className="input text-sm" placeholder="Optional" />
                     </div>
-                  </div>
-                  <div className="flex flex-wrap items-start gap-2">
-                    <div className="w-28">
+                    <div>
                       <label className="text-xs text-muted">Weight (grams)</label>
                       <input type="number" {...register(`variants.${idx}.weightGrams`, { setValueAs: (v: string) => v === "" ? null : Number(v) })} className="input text-sm" placeholder="10000" />
                     </div>
-                    <div className="w-20">
+                    <div>
                       <label className="text-xs text-muted">Stock</label>
                       <input type="number" {...register(`variants.${idx}.stock`, { valueAsNumber: true })} className="input text-sm" />
                     </div>
-                    <div className="flex items-end gap-2 pb-1">
+                    <div className="flex items-center gap-2 xl:pt-7">
                       <label className="flex items-center gap-1.5 text-xs text-muted">
                         <input type="checkbox" {...register(`variants.${idx}.isActive`)} className="accent-forest" /> Active
                       </label>
@@ -319,17 +322,17 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
           </div>
 
           {/* SEO */}
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-ink">SEO</h2>
+          <div className="grid gap-3 rounded-xl border border-line bg-paper p-3 sm:grid-cols-2">
+            <h2 className="col-span-full text-sm font-semibold text-ink">SEO</h2>
             <Field label="Meta title" tip="Custom page title for search engines. Falls back to product name if blank"><input {...register("metaTitle")} className="input" /></Field>
-            <Field label="Meta description" tip="Description shown in Google search results. Keep under 160 characters"><textarea {...register("metaDescription")} rows={2} className="input" /></Field>
+            <Field className="col-span-full sm:order-last" label="Meta description" tip="Description shown in Google search results. Keep under 160 characters"><textarea {...register("metaDescription")} rows={2} className="input" /></Field>
             <Field label="Meta keywords" tip="Comma-separated keywords for SEO"><input {...register("metaKeywords")} className="input" placeholder="organic, wheat, atta, flour" /></Field>
           </div>
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
+        <div className="space-y-3">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">Status</h2>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...register("isActive")} className="accent-forest" /> Active (visible on store)
@@ -339,7 +342,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
             </label>
           </div>
 
-          <div className="rounded-xl border border-line bg-paper p-5 space-y-4">
+          <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
             <h2 className="text-sm font-semibold text-ink">Images</h2>
             {mode === "create" && <p className="text-xs text-muted">Save the product first, then upload images.</p>}
             {mode === "edit" && (
@@ -360,7 +363,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
                     </div>
                   ))}
                 </div>
-                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-line py-3 text-xs text-muted hover:border-forest hover:text-forest">
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-line py-2 text-xs text-muted hover:border-forest hover:text-forest">
                   {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   {uploading ? "Uploading..." : "Upload images"}
                   <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="sr-only" />
@@ -369,7 +372,7 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
             )}
           </div>
 
-          <button type="submit" disabled={saving} className="w-full rounded-lg bg-forest py-2.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-60">
+          <button type="submit" disabled={saving} className="w-full rounded-lg bg-forest py-1.5 text-sm font-medium text-cream hover:bg-forest-dark disabled:opacity-60">
             {saving ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : mode === "edit" ? "Save changes" : "Create product"}
           </button>
         </div>
@@ -378,9 +381,9 @@ export function ProductForm({ mode, productId, defaultValues, initialImages = []
   );
 }
 
-function Field({ label, tip, error, children }: { label: string; tip?: string; error?: string; children: React.ReactNode }) {
+function Field({ label, tip, error, className, children }: { label: string; tip?: string; error?: string; className?: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div className={className}>
       <label className="mb-1 block text-xs font-medium text-muted">
         {label}
         {tip && <InfoTip text={tip} />}

@@ -64,7 +64,7 @@ export default function AdminReviewsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-ink">Reviews</h1>
 
       <div className="flex gap-2">
@@ -86,14 +86,14 @@ export default function AdminReviewsPage() {
       <p className="text-sm text-muted">{total} review{total !== 1 ? "s" : ""}</p>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted" /></div>
       ) : reviews.length === 0 ? (
-        <p className="py-8 text-center text-muted">No {statusFilter.toLowerCase()} reviews.</p>
+        <p className="py-5 text-center text-muted">No {statusFilter.toLowerCase()} reviews.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {reviews.map((r) => (
-            <div key={r.id} className="rounded-xl border border-line bg-paper p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
+            <div key={r.id} className="rounded-xl border border-line bg-paper p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <div className="flex">
