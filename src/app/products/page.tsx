@@ -55,7 +55,7 @@ export default async function ProductsPage({
         ) : (
           <div className="mt-10 grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-4">
             {products.map((p, i) => (
-              <Reveal key={p.id} delay={(i % 4) * 0.05}>
+              <Reveal key={p.id} className="h-full" delay={(i % 4) * 0.05}>
                 <ProductCard product={p} />
               </Reveal>
             ))}
