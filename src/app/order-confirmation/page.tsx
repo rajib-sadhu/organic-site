@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { CheckCircle, Package, ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
+import { CreateAccountFromOrder } from "@/components/account/CreateAccountFromOrder";
 
 function ConfirmationContent() {
   const params = useSearchParams();
@@ -66,6 +67,8 @@ function ConfirmationContent() {
           A confirmation email with your invoice will be sent shortly.
           {token && " You can track your order using the link in the email."}
         </p>
+
+        {token && <CreateAccountFromOrder token={token} />}
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           {token && (

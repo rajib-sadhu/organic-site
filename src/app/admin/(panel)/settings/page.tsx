@@ -11,9 +11,16 @@ type Settings = {
   codOtpRequired: boolean; gstEnabled: boolean;
   announcementText: string | null; announcementHref: string | null;
   abandonedCartOn: boolean; abandonedCartCouponId: number | null;
+  customerAccounts: "OFF" | "OPTIONAL" | "REQUIRED";
 };
 
 type CouponOption = { id: number; code: string; isActive: boolean };
+
+const ACCOUNT_MODES = [
+  { value: "OPTIONAL", label: "Optional", help: "Shoppers can check out as a guest or with an account." },
+  { value: "REQUIRED", label: "Required", help: "Shoppers must log in or sign up before placing an order." },
+  { value: "OFF", label: "Off", help: "No accounts: login links are hidden and everyone checks out as a guest." },
+] as const;
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -94,6 +101,27 @@ export default function AdminSettingsPage() {
             <input type="checkbox" checked={settings.gstEnabled} onChange={(e) => set("gstEnabled", e.target.checked)} className="accent-forest" />
             Show GST on invoices
           </label>
+        </div>
+
+        <div className="rounded-xl border border-line bg-paper p-3 space-y-3">
+          <h2 className="text-sm font-semibold text-ink">Customer accounts</h2>
+          <div className="space-y-2">
+            {ACCOUNT_MODES.map((m) => (
+              <label key={m.value} className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="customerAccounts"
+                  checked={settings.customerAccounts === m.value}
+                  onChange={() => set("customerAccounts", m.value)}
+                  className="mt-0.5 accent-forest"
+                />
+                <span>
+                  <span className="font-medium text-ink">{m.label}</span>
+                  <span className="block text-xs text-muted">{m.help}</span>
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="rounded-xl border border-line bg-paper p-3 space-y-3">

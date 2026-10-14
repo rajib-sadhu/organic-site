@@ -79,20 +79,21 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id          Int         @id @default(autoincrement())
-  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId   Int
-  label       String // "500g", "10 kg"
-  sku         String      @unique
-  pricePaise  Int // sale/tax-inclusive price
-  mrpPaise    Int? // MRP for strikethrough; null = no discount shown
-  weightGrams Int? // weight in grams for per-unit pricing (10kg = 10000)
-  stock       Int         @default(0)
-  isActive    Boolean     @default(true)
-  cartItems   CartItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  orderItems  OrderItem[]
+  id           Int                    @id @default(autoincrement())
+  product      Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    Int
+  label        String // "500g", "10 kg"
+  sku          String                 @unique
+  pricePaise   Int // sale/tax-inclusive price
+  mrpPaise     Int? // MRP for strikethrough; null = no discount shown
+  weightGrams  Int? // weight in grams for per-unit pricing (10kg = 10000)
+  stock        Int                    @default(0)
+  isActive     Boolean                @default(true)
+  cartItems    CartItem[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  orderItems   OrderItem[]
+  wishlistedBy CustomerWishlistItem[]
 
   @@index([productId])
 }
@@ -314,21 +315,22 @@ model RolePermission {
 // ---------------------------------------------------------------------------
 
 model Setting {
-  id                    Int      @id @default(1)
-  storeName             String   @default("Organic Foods")
+  id                    Int                 @id @default(1)
+  storeName             String              @default("Organic Foods")
   storeEmail            String?
-  flatShippingPaise     Int      @default(0)
+  flatShippingPaise     Int                 @default(0)
   freeShipOverPaise     Int? // null = no free-ship threshold
-  codFeePaise           Int      @default(0)
-  codOtpRequired        Boolean  @default(false) // admin toggle (see ARCHITECTURE 6.5/7.1)
-  gstEnabled            Boolean  @default(false)
+  codFeePaise           Int                 @default(0)
+  codOtpRequired        Boolean             @default(false) // admin toggle (see ARCHITECTURE 6.5/7.1)
+  gstEnabled            Boolean             @default(false)
   announcementText      String? // promo bar copy; null = bar hidden
   announcementHref      String?
-  featureCardGrid       Int      @default(3) // home page feature cards grid: 2, 3, or 4 columns
-  abandonedCartOn       Boolean  @default(false) // send cart reminders (§6.10)
-  abandonedCartCoupon   Coupon?  @relation("AbandonedCartCoupon", fields: [abandonedCartCouponId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  featureCardGrid       Int                 @default(3) // home page feature cards grid: 2, 3, or 4 columns
+  abandonedCartOn       Boolean             @default(false) // send cart reminders (§6.10)
+  abandonedCartCoupon   Coupon?             @relation("AbandonedCartCoupon", fields: [abandonedCartCouponId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   abandonedCartCouponId Int? // optional coupon offered in the last reminder
-  updatedAt             DateTime @updatedAt
+  customerAccounts      CustomerAccountMode @default(OPTIONAL)
+  updatedAt             DateTime            @updatedAt
 }
 
 // Emails that asked to stop a kind of message (e.g. cart reminders).
@@ -436,16 +438,69 @@ enum PostStatus {
 // ---------------------------------------------------------------------------
 
 model Customer {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String?
-  name         String?
-  phone        String?
-  isActive     Boolean  @default(true)
-  orders       Order[]
-  reviews      Review[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              Int                    @id @default(autoincrement())
+  email           String                 @unique
+  passwordHash    String? // null = code-login only
+  emailVerifiedAt DateTime? // set by a verify link or a code login; guest orders link only after this
+  tokenVersion    Int                    @default(0) // bump to log out every session (password change/reset)
+  name            String?
+  phone           String?
+  isActive        Boolean                @default(true)
+  // saved checkout address
+  shipName        String?
+  shipLine1       String?
+  shipLine2       String?
+  shipCity        String?
+  shipState       String?
+  shipPincode     String?
+  orders          Order[]
+  reviews         Review[]
+  wishlist        CustomerWishlistItem[]
+  tokens          CustomerToken[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+}
+
+model CustomerWishlistItem {
+  id         Int            @id @default(autoincrement())
+  customer   Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customerId Int
+  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variantId  Int
+  createdAt  DateTime       @default(now())
+
+  @@unique([customerId, variantId])
+  @@index([variantId])
+}
+
+// One-time secrets emailed to customers. Only an HMAC is stored.
+// LOGIN_CODE is keyed by email (the account may not exist yet); the link purposes by customer.
+model CustomerToken {
+  id         Int               @id @default(autoincrement())
+  purpose    CustomerTokenType
+  email      String
+  customer   Customer?         @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customerId Int?
+  secretHash String            @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int               @default(0)
+  createdAt  DateTime          @default(now())
+
+  @@index([email, purpose, createdAt])
+  @@index([customerId])
+}
+
+enum CustomerTokenType {
+  LOGIN_CODE
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum CustomerAccountMode {
+  OFF // no accounts anywhere; guest checkout only
+  OPTIONAL // guest checkout + optional accounts
+  REQUIRED // must be logged in to place an order
 }
 
 // ---------------------------------------------------------------------------

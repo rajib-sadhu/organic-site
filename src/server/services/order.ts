@@ -20,6 +20,8 @@ type CreateOrderInput = {
   cart: CartWithDetails;
   address: CheckoutAddress;
   paymentMethod: PaymentMethod;
+  /** Logged-in customer (§6.6); null for guest checkout. */
+  customerId?: number | null;
   /**
    * Creates the order at the payment provider. Runs after validation but
    * before anything is written, so a provider failure leaves no order, no
@@ -78,6 +80,7 @@ export async function createOrder(input: CreateOrderInput) {
     const created = await tx.order.create({
       data: {
         orderNo,
+        customerId: input.customerId ?? null,
         ...address,
         shipLine2: address.shipLine2 || null,
         subtotalPaise: totals.subtotalPaise,
