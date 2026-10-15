@@ -89,14 +89,13 @@ export default function AdminUsersPage() {
 
       {/* Users section */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink">Admin users</h2>
-          {canManageUsers && (
+        {canManageUsers && (
+          <div className="flex justify-end">
             <button type="button" onClick={() => setShowUserForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-sm font-medium text-cream hover:bg-forest-dark">
               <UserPlus className="h-4 w-4" /> Add user
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {showUserForm && <CreateUserForm roles={roles} onDone={() => { setShowUserForm(false); load(); }} />}
 
@@ -149,14 +148,13 @@ export default function AdminUsersPage() {
 
       {/* Roles section */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink">Roles</h2>
-          {canManageUsers && (
+        {canManageUsers && (
+          <div className="flex justify-end">
             <button type="button" onClick={() => setShowRoleForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink hover:bg-sand">
               <Plus className="h-4 w-4" /> Add role
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {showRoleForm && <RoleForm onDone={() => { setShowRoleForm(false); load(); }} />}
 
