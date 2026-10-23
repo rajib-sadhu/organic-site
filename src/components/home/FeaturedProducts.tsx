@@ -4,6 +4,8 @@ import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { ProductCard } from "@/components/product/ProductCard";
 import { getFeaturedProducts } from "@/server/repositories/catalog";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { toItem } from "@/lib/analytics";
 
 export async function FeaturedProducts() {
   const products = await getFeaturedProducts(8);
@@ -36,6 +38,17 @@ export async function FeaturedProducts() {
           </p>
         ) : (
           <div className="mt-10 grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-4">
+            <TrackEvent
+              event="view_item_list"
+              params={{
+                item_list_id: "featured",
+                item_list_name: "Pantry favourites",
+                items: products.map((p, index) => ({
+                  ...toItem({ productSlug: p.slug, productName: p.name, pricePaise: p.variants[0]?.pricePaise ?? 0, category: p.category.name }),
+                  index,
+                })),
+              }}
+            />
             {products.map((p, i) => (
               <Reveal key={p.id} className="h-full" delay={(i % 4) * 0.06}>
                 <ProductCard product={p} />

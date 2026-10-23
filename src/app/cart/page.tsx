@@ -10,6 +10,8 @@ import { CouponsModal } from "@/components/cart/CouponsModal";
 import { formatPaise } from "@/lib/money";
 import { useCart, selectCount } from "@/store/cart";
 import { fetchCart, cartAction, type ServerCart, type ServerCartTotals } from "@/lib/cart-api";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { cartParams } from "@/lib/analytics";
 
 export default function CartPage() {
   const zustandItems = useCart((s) => s.items);
@@ -163,6 +165,7 @@ export default function CartPage() {
 
   return (
     <div className="py-12 sm:py-16">
+      {serverCart && serverCart.items.length > 0 && <TrackEvent event="view_cart" params={cartParams(serverCart)} />}
       <Container>
         <h1 className="font-display text-4xl text-forest-dark sm:text-5xl">Your cart</h1>
 

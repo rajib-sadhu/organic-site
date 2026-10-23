@@ -25,6 +25,9 @@ export type TemplateData = {
   "order.confirmation": { orderId: number };
   "cod.otp": { code: string; ttlMinutes: number };
   "cart.reminder": { cartId: string; reminderNo: number; couponCode: string | null };
+  "account.login_code": { code: string; ttlMinutes: number };
+  "account.verify_email": { url: string; name: string | null };
+  "account.reset_password": { url: string; ttlMinutes: number };
 };
 
 export type TemplateName = keyof TemplateData;
@@ -230,10 +233,87 @@ const cartReminder: Template<TemplateData["cart.reminder"]> = {
   redact: (body) => body.replace(/\/cart\/(recover|unsubscribe)\/[A-Za-z0-9_-]+/g, `/cart/$1/${REDACTED}`),
 };
 
+/** Small branded email: heading, paragraph, and an optional highlighted block (code or button). */
+function accountEmail(heading: string, intro: string, highlight: string, footnote: string): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#faf8f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#211e19">
+<div style="max-width:600px;margin:0 auto;padding:32px 20px">
+  <div style="text-align:center;margin-bottom:32px">
+    <h1 style="color:#24503a;font-size:28px;margin:0">${esc(siteConfig.name)}</h1>
+  </div>
+  <div style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e7e1d3;text-align:center">
+    <h2 style="color:#24503a;font-size:22px;margin:0 0 8px">${heading}</h2>
+    <p style="color:#6d655a;margin:0 0 24px">${intro}</p>
+    ${highlight}
+  </div>
+  <p style="text-align:center;color:#6d655a;font-size:12px;margin-top:32px">${footnote}</p>
+</div>
+</body>
+</html>`;
+}
+
+function button(url: string, label: string): string {
+  return `<a href="${esc(url)}" style="display:inline-block;background:#24503a;color:#faf8f3;text-decoration:none;padding:14px 32px;border-radius:999px;font-size:14px;font-weight:600">${label}</a>`;
+}
+
+const accountLoginCode: Template<TemplateData["account.login_code"]> = {
+  channel: "EMAIL",
+  async render({ code, ttlMinutes }) {
+    return {
+      subject: `Your ${siteConfig.name} login code`, // no code here: only the body is redacted after send
+      body: accountEmail(
+        "Your login code",
+        `Enter this code to log in. It expires in ${ttlMinutes} minutes.`,
+        `<p style="margin:0;font-size:32px;letter-spacing:8px;font-weight:700;font-family:monospace;color:#211e19">${esc(code)}</p>`,
+        "If you didn't ask for this code, you can ignore this email. Never share it with anyone.",
+      ),
+    };
+  },
+  redact: (body) => body.replace(/\b\d{6}\b/g, REDACTED),
+};
+
+const accountVerifyEmail: Template<TemplateData["account.verify_email"]> = {
+  channel: "EMAIL",
+  async render({ url, name }) {
+    return {
+      subject: `Confirm your email for ${siteConfig.name}`,
+      body: accountEmail(
+        name ? `Welcome, ${esc(name)}!` : "Welcome!",
+        "Confirm your email address to finish setting up your account. Any earlier orders placed with this email will then show in your order history.",
+        button(url, "Confirm my email"),
+        "If you didn't create an account, you can ignore this email.",
+      ),
+    };
+  },
+  redact: (body) => body.replace(/\/account\/verify\/[A-Za-z0-9_-]+/g, `/account/verify/${REDACTED}`),
+};
+
+const accountResetPassword: Template<TemplateData["account.reset_password"]> = {
+  channel: "EMAIL",
+  async render({ url, ttlMinutes }) {
+    return {
+      subject: `Reset your ${siteConfig.name} password`,
+      body: accountEmail(
+        "Reset your password",
+        `Use the button below to choose a new password. The link expires in ${ttlMinutes} minutes and works once.`,
+        button(url, "Choose a new password"),
+        "If you didn't ask to reset your password, you can ignore this email. Your password won't change.",
+      ),
+    };
+  },
+  redact: (body) => body.replace(/\/account\/reset\/[A-Za-z0-9_-]+/g, `/account/reset/${REDACTED}`),
+};
+
 export const templates: { [K in TemplateName]: Template<TemplateData[K]> } = {
   "order.confirmation": orderConfirmation,
   "cod.otp": codOtp,
   "cart.reminder": cartReminder,
+  "account.login_code": accountLoginCode,
+  "account.verify_email": accountVerifyEmail,
+  "account.reset_password": accountResetPassword,
 };
 
 export function redactBody(template: string, body: string): string {

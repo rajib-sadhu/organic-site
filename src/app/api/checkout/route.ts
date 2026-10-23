@@ -7,6 +7,8 @@ import { createRazorpayOrder, getPublicKeyId } from "@/server/lib/razorpay";
 import { queueOrderConfirmation } from "@/server/services/notify";
 import { getSettings } from "@/server/services/settings";
 import { consumeCodOtp, releaseCodOtp, OtpError } from "@/server/services/otp";
+import { getCustomerSession } from "@/server/lib/customer-auth";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -28,9 +30,16 @@ export async function POST(req: Request) {
 
   const { paymentMethod, otpCode, ...address } = parsed.data;
 
+  // Accounts (§6.6): link the order when logged in; REQUIRED mode refuses guests.
+  const settings = await getSettings();
+  const customer = await getCustomerSession(); // null whenever accounts are OFF
+  if (settings.customerAccounts === "REQUIRED" && !customer) {
+    return NextResponse.json({ error: "Please log in to place your order.", loginRequired: true }, { status: 401 });
+  }
+
   // COD-OTP (§6.3): when enabled, the order is only accepted with a valid code.
   let otpChallengeId: number | null = null;
-  if (paymentMethod === "COD" && (await getSettings()).codOtpRequired) {
+  if (paymentMethod === "COD" && settings.codOtpRequired) {
     if (!otpCode) {
       return NextResponse.json(
         { error: "Verify your phone number to place a Cash on Delivery order.", otpRequired: true },
@@ -53,6 +62,7 @@ export async function POST(req: Request) {
       cart,
       address,
       paymentMethod,
+      customerId: customer?.id ?? null,
       createProviderPayment:
         paymentMethod === "RAZORPAY"
           ? async ({ orderNo, totalPaise }) => {
@@ -69,6 +79,7 @@ export async function POST(req: Request) {
 
   try {
     await cartRepo.setEmail(cart.id, address.email);
+    if (customer) await saveFirstAddress(customer.id, address);
 
     if (paymentMethod === "RAZORPAY") {
       return NextResponse.json({
@@ -106,4 +117,16 @@ export async function POST(req: Request) {
     const message = e instanceof Error ? e.message : "Checkout failed.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
+}
+
+/** A customer's first order fills their saved address; after that they edit it from their account. */
+async function saveFirstAddress(customerId: number, a: { phone: string; shipName: string; shipLine1: string; shipLine2?: string; shipCity: string; shipState: string; shipPincode: string }) {
+  await prisma.customer.updateMany({
+    where: { id: customerId, shipLine1: null },
+    data: {
+      shipName: a.shipName, shipLine1: a.shipLine1, shipLine2: a.shipLine2 || null,
+      shipCity: a.shipCity, shipState: a.shipState, shipPincode: a.shipPincode,
+    },
+  });
+  await prisma.customer.updateMany({ where: { id: customerId, phone: null }, data: { phone: a.phone } });
 }

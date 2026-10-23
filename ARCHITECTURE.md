@@ -602,6 +602,11 @@ enum NotifStatus   { PENDING SENDING SENT FAILED }
 - Buying never requires an account — guest checkout is the default path. Accounts are **opt-in**: register from the navbar, or "create an account" offered on the order-confirmation screen (pre-fills from the just-placed order, sets a password).
 - Customer session is **fully separate** from admin (own cookie + `Customer` table). An account unlocks: order history, wishlist, faster checkout (saved address), and review attribution.
 - When a logged-in customer checks out, `Order.customerId` is set; pure-guest orders leave it null.
+- **Admin setting `customerAccounts`:** `OPTIONAL` (default — guest checkout + accounts), `REQUIRED` (must log in to order; enforced in `/api/checkout`, not just the UI), `OFF` (account pages/APIs 404, navbar link hidden, sessions ignored).
+- **Login:** email + password, or a 6-digit **email code** (which also signs up a new email). Codes/links are stored only as HMACs (`CustomerToken`) and redacted in the outbox once sent; cooldown 30s, 5/hour per email; 5 bad passwords lock that email for 15 min (in memory — single PM2 process).
+- **Session:** `customer_token` JWT signed with a key *derived* from `AUTH_SECRET` (so it can never verify as an admin token). It carries `tokenVersion`, re-checked on every read: password change/reset logs out every other device.
+- **Guest-order linking:** past guest orders with the same email attach only once the inbox is proven (verify link, email code, or password reset). The confirmation-page signup links its own order immediately (the tracking token proves it), within 24h of the order.
+- **Saved address** fills checkout; the first logged-in order saves it if none exists. **Wishlist** is stored server-side (`CustomerWishlistItem`) while logged in; on login this browser's items are merged in, on logout the local copy is cleared.
 
 ### 6.7 Reviews & ratings
 - Submit from the product page. **Verified-purchase** = the email/customer has a `DELIVERED` order containing that product → `isVerified = true`.

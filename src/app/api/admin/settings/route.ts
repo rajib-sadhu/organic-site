@@ -3,11 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requirePermission, hasPermission, type AdminSession } from "@/server/lib/admin-auth";
 
+// "orders@shop.in" or "Shop Name <orders@shop.in>" (the seed copies EMAIL_FROM, which uses the second form).
+const emailOrMailbox = z.string().trim().max(191).refine(
+  (v) => z.email().safeParse(/<([^<>]+)>\s*$/.exec(v)?.[1] ?? v).success,
+  "Enter an email address, e.g. orders@example.com or Shop Name <orders@example.com>",
+);
+
 // Only these fields are writable; anything else in the body is ignored.
 const settingsUpdateSchema = z
   .object({
     storeName: z.string().trim().min(1).max(191),
-    storeEmail: z.string().trim().email().max(191).nullable(),
+    storeEmail: emailOrMailbox.nullable(),
     flatShippingPaise: z.number().int().min(0),
     freeShipOverPaise: z.number().int().min(0).nullable(),
     codFeePaise: z.number().int().min(0),
@@ -18,6 +24,8 @@ const settingsUpdateSchema = z
     featureCardGrid: z.union([z.literal(2), z.literal(3), z.literal(4)]),
     abandonedCartOn: z.boolean(),
     abandonedCartCouponId: z.number().int().positive().nullable(),
+    customerAccounts: z.enum(["OFF", "OPTIONAL", "REQUIRED"]),
+    passwordLogin: z.enum(["OFF", "OPTIONAL", "REQUIRED"]),
   })
   .partial();
 

@@ -6,7 +6,15 @@ import { queueAbandonedCartReminders } from "@/server/services/abandoned-cart";
 import { expireUnpaidOrders } from "@/server/services/payment-expiry";
 import { processDueNotifications, purgeOldNotifications } from "./index";
 
-const globalForWorker = globalThis as unknown as { notificationWorkerStarted?: boolean };
+const globalForWorker = globalThis as unknown as {
+  notificationWorkerStarted?: boolean;
+  notificationWorkerLastTickAt?: number;
+};
+
+/** When the outbox tick last completed in this process, or null if it hasn't run yet. */
+export function getWorkerLastTickAt(): number | null {
+  return globalForWorker.notificationWorkerLastTickAt ?? null;
+}
 
 export function startNotificationWorker(): void {
   // Guard against double-start (dev HMR re-evaluates modules).
@@ -19,6 +27,7 @@ export function startNotificationWorker(): void {
       try {
         const n = await processDueNotifications();
         if (n > 0) console.log(`[notify:worker] processed ${n} notification(s)`);
+        globalForWorker.notificationWorkerLastTickAt = Date.now();
       } catch (e) {
         console.error("[notify:worker] tick failed:", e);
       }

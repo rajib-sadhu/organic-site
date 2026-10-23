@@ -3,6 +3,8 @@
 //   npm ci && npm run build && npx prisma migrate deploy
 //   pm2 start ecosystem.config.js   (first time)
 //   pm2 reload organic-site         (subsequent deploys, zero-downtime)
+//   curl -fsS localhost:3000/api/health   (smoke test: 200 = DB, worker, outbox OK; 503 otherwise)
+// Point an uptime monitor at https://<site>/api/health and alert on non-200.
 module.exports = {
   apps: [
     {

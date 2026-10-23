@@ -9,6 +9,7 @@ import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/cn";
 import { CartButton } from "@/components/cart/CartButton";
 import { WishlistNavButton } from "@/components/wishlist/WishlistNavButton";
+import { AccountNavButton } from "@/components/account/AccountNavButton";
 
 function subscribeScroll(onChange: () => void) {
   window.addEventListener("scroll", onChange, { passive: true });
@@ -69,6 +70,7 @@ export function Navbar() {
         </ul>
 
         <div className="flex items-center gap-1">
+          <AccountNavButton />
           <WishlistNavButton />
           <CartButton />
           <button

@@ -6,6 +6,9 @@ import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { GoToTop } from "@/components/ui/GoToTop";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { Analytics } from "@/components/analytics/Analytics";
+import { ConsentBanner } from "@/components/analytics/ConsentBanner";
+import { AccountBootstrap } from "@/components/account/AccountBootstrap";
 
 export function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -23,6 +26,9 @@ export function StoreShell({ children }: { children: React.ReactNode }) {
       <Footer />
       <GoToTop />
       <CartDrawer />
+      <Analytics />
+      <AccountBootstrap />
+      <ConsentBanner />
     </>
   );
 }

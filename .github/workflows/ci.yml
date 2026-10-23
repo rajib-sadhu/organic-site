@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # `next build` pre-renders the home, product and blog pages from the
+    # database (ISR + generateStaticParams), so the build needs a real,
+    # migrated and seeded MySQL — which also proves the migrations apply cleanly.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: organic_site
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/organic_site
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      AUTH_SECRET: ci-only-not-a-real-secret-0123456789abcdef
+      EMAIL_DRIVER: log
+      SMS_DRIVER: log
+      NEXT_TELEMETRY_DISABLED: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # The Prisma client is generated into src/generated (gitignored);
+      # typecheck and lint both need it.
+      - run: npm run db:generate
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - name: Apply migrations
+        run: npm run db:deploy
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - run: npm run build
